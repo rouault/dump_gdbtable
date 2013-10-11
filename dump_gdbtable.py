@@ -120,7 +120,7 @@ if layer_geom_type == 3:
     print('polyline')
 if layer_geom_type == 4:
     print('polygon')
-
+    
 # skip 3 bytes
 f.seek(3, 1)
 nfields = ord(f.read(1))
@@ -324,11 +324,6 @@ for i in range(nfields):
 
 print('')
 
-if xyscale is not None:
-    xyscale_int = int(xyscale)
-    xorig = int(xorig)
-    yorig = int(yorig)
-
 for fid in range(nfeaturesx):
 
     fx.seek(16 + fid * 5, 0)
@@ -421,11 +416,11 @@ for fid in range(nfeaturesx):
                 for i in range(nb_total_points):
                     if i == 0:
                         vi = read_varuint(f)
-                        x0 = (vi + xorig * xyscale ) / xyscale
+                        x0 = vi / xyscale + xorig
                         vi = read_varuint(f)
-                        y0 = (vi  + yorig * xyscale ) / xyscale
+                        y0 = vi / xyscale + yorig
                         vi = read_varuint(f)
-                        z0 = (vi  + zorig * zscale ) / zscale
+                        z0 = vi / zscale  + zorig
                         print("%.15f %.15f %.15f" % (x0, y0, z0))
                         dx_int = dy_int = dz_int = 0
                     else:
@@ -439,19 +434,19 @@ for fid in range(nfeaturesx):
                         print("%.15f %.15f %.15f" % (x, y, z))
 
             if geom_type == 1:
-                vi = read_varint(f)
-                x0 = (vi + xorig * xyscale_int ) / xyscale
-                vi = read_varint(f)
-                y0 = (vi  + yorig * xyscale_int ) / xyscale
+                vi = read_varuint(f)
+                x0 = vi / xyscale + xorig
+                vi = read_varuint(f)
+                y0 = vi / xyscale + yorig
                 print("%.15f %.15f" % (x0, y0))
                 
             if geom_type == 9:
-                vi = read_varint(f)
-                x0 = (vi + xorig * xyscale_int ) / xyscale
-                vi = read_varint(f)
-                y0 = (vi  + yorig * xyscale_int ) / xyscale
-                vi = read_varint(f)
-                z0 = (vi  + zorig * zscale ) / zscale
+                vi = read_varuint(f)
+                x0 = vi / xyscale + xorig
+                vi = read_varuint(f)
+                y0 = vi / xyscale + yorig
+                vi = read_varuint(f)
+                z0 = vi / zscale + zorig
                 print("%.15f %.15f %.15f" % (x0, y0, z0))
             
             if geom_type == 3 or geom_type == 5:
@@ -461,10 +456,10 @@ for fid in range(nfeaturesx):
                 nb_geoms = read_varuint(f)
                 print("nb_geoms: %d" % nb_geoms)
                 vi = read_varuint(f)
-                minx = (vi + xorig * xyscale_int) / xyscale
+                minx = vi / xyscale + xorig
                 print('minx = %.15f' % minx)
                 vi = read_varuint(f)
-                miny = (vi + yorig * xyscale_int) / xyscale
+                miny = vi / xyscale + yorig
                 print('miny = %.15f' % miny)
                 vi = read_varuint(f)
                 maxx = minx + vi / xyscale
@@ -494,10 +489,10 @@ for fid in range(nfeaturesx):
                     else:
                         i_point = 1
                         vi = read_varint(f)
-                        x0 = (vi + xorig * xyscale_int ) / xyscale
+                        x0 = vi / xyscale + xorig
                         dx_int = 0
                         vi = read_varint(f)
-                        y0 = (vi  + yorig * xyscale_int ) / xyscale
+                        y0 = vi / xyscale + yorig
                         dy_int = 0
                         print("[%d] %.15f %.15f" % (i_point, x0, y0))
 

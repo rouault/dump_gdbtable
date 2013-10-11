@@ -439,9 +439,9 @@ for fid in range(nfeaturesx):
                         print("%.15f %.15f %.15f" % (x, y, z))
 
             if geom_type == 1:
-                vi = read_varint(f)
+                vi = read_varuint(f)
                 x0 = (vi + xorig * xyscale_int ) / xyscale
-                vi = read_varint(f)
+                vi = read_varuint(f)
                 y0 = (vi  + yorig * xyscale_int ) / xyscale
                 print("%.15f %.15f" % (x0, y0))
                 

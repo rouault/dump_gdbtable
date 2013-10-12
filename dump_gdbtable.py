@@ -185,9 +185,16 @@ def multipatch_part_type_to_str(type):
 for i in range(nfields):
     
     fd = FieldDesc()
+    #print(f.tell())
     
     print('')
     nbcar =  ord(f.read(1))
+    
+    # PreNIS.gdb/a00000009.gdbtable has 0's after some fields !
+    while nbcar == 0:
+        print('skipping zero byte')
+        nbcar =  ord(f.read(1))
+    
     print('nbcar = %d' % nbcar)
     name = ''
     for j in range(nbcar):
@@ -278,34 +285,15 @@ for i in range(nfields):
         
         cur_pos = f.tell()
         print('cur_pos = %d' % cur_pos)
-        f.read(1)
-        magic4 =  read_int32(f)
-        # /home/even/FileGDB_API/samples/data/Shapes.gdb/a00000026.gdbtable weirdness
-        if magic4 == 0:
-            f.seek(cur_pos, 0)
-            print(read_float64(f))
-            print(read_float64(f))
-            f.read(1)
-            magic4 =  read_int32(f)
-
-        print('magic4 = %d' % magic4)
-        
-        # FIXME !!!!
-        # /home/even/FileGDB_API/samples/data/Shapes.gdb/a00000027.gdbtable reports magic4 = 2139964412
-        # but this is no sense. It turns out that 3 works
-        # we need to undertand how that works
-        if magic4 > 10:
-            print('Weird value. Setting magic4 to 3 arbitarly !')
-            magic4 = 3
-
-        # /home/even/FileGDB_API/samples/data/Shapes.gdb/a00000028.gdbtable reports magic4 = -515899392
-        if magic4 < 0:
-            print('Weird value. Setting magic4 to 5 arbitarly !')
-            magic4 = 5
-
-        for j in range(magic4):
-            print(read_float64(f))
-
+        while True:
+            read5 = f.read(5)
+            if read5[0] != chr(0) or (read5[1] != chr(1) and read5[1] != chr(2) and read5[1] != chr(3)) or read5[2] != chr(0) or read5[3] != chr(0) or read5[4] != chr(0):
+                f.seek(-5,1)
+                print(read_float64(f))
+            else:
+                for i in range(ord(read5[1])):
+                    print(read_float64(f))
+                break
 
     # string
     elif type == 4:
@@ -431,6 +419,10 @@ for fid in range(nfeaturesx):
                 print('point')
             elif geom_type == 9:
                 print('pointz')
+            elif geom_type == 8:
+                print('multipoint')
+            elif geom_type == 18:
+                print('multipoint zm')
             elif geom_type == 20:
                 print('multipoint z')
             elif geom_type == 3:
@@ -558,28 +550,52 @@ for fid in range(nfeaturesx):
 
                 #print("actual_length = %d vs %d" % (f.tell() - saved_offset, geom_len))
 
-            if geom_type == 20:
+            if geom_type == 8 or geom_type == 18 or geom_type == 20:
                 nb_total_points = read_varuint(f)
                 print("nb_total_points: %d" % nb_total_points)
+
+                vi = read_varuint(f)
+                minx = vi / xyscale + xorig
+                print('minx = %.15f' % minx)
+                vi = read_varuint(f)
+                miny = vi / xyscale + yorig
+                print('miny = %.15f' % miny)
+                vi = read_varuint(f)
+                maxx = minx + vi / xyscale
+                print('maxx = %.15f' % maxx)
+                vi = read_varuint(f)
+                maxy = miny + vi / xyscale
+                print('maxy = %.15f' % maxy)
+
                 for i in range(nb_total_points):
                     if i == 0:
-                        vi = read_varuint(f)
+                        vi = read_varint(f)
                         x0 = vi / xyscale + xorig
-                        vi = read_varuint(f)
+                        vi = read_varint(f)
                         y0 = vi / xyscale + yorig
-                        vi = read_varuint(f)
-                        z0 = vi / zscale  + zorig
-                        print("%.15f %.15f %.15f" % (x0, y0, z0))
+                        print("[%d] x=%.15f y=%.15f" % (i, x0, y0))
                         dx_int = dy_int = dz_int = 0
                     else:
                         vi = read_varint(f)
                         dx_int = dx_int + vi
                         x = x0 + dx_int / xyscale
-                        dy_int = dy_int + read_varint(f) 
+                        vi = read_varint(f) 
+                        dy_int = dy_int + vi
                         y = y0 + dy_int / xyscale
-                        dz_int = dz_int + read_varint(f) 
-                        z = z0 + dz_int / zscale
-                        print("%.15f %.15f %.15f" % (x, y, z))
+                        print("[%d] x=%.15f y=%.15f" % (i, x, y))
+
+                if geom_type == 18 or geom_type == 20:
+                    for i in range(nb_total_points):
+                        if i == 0:
+                            vi = read_varint(f)
+                            z0 = vi / zscale  + zorig
+                            print("[%d] z=%.15f" % (i, z0))
+                            dx_int = dy_int = dz_int = 0
+                        else:
+                            vi = read_varint(f) 
+                            dz_int = dz_int + vi
+                            z = z0 + dz_int / zscale
+                            print("[%d] z=%.15f" % (i, z))
 
             if geom_type == 1:
                 vi = read_varuint(f)

@@ -431,6 +431,8 @@ for fid in range(nfeaturesx):
                 print('polyline z')
             elif geom_type == 13:
                 print('polyline zm')
+            elif geom_type == 23:
+                print('polyline m')
             elif geom_type == 5:
                 print('polygon')
             elif geom_type == 19:
@@ -613,7 +615,7 @@ for fid in range(nfeaturesx):
                 z0 = vi / zscale + zorig
                 print("%.15f %.15f %.15f" % (x0, y0, z0))
             
-            if geom_type == 3 or geom_type == 5 or geom_type == 10 or geom_type == 13 or geom_type == 19:
+            if geom_type == 3 or geom_type == 5 or geom_type == 10 or geom_type == 13 or geom_type == 23 or geom_type == 19:
 
                 nb_total_points = read_varuint(f)
                 print("nb_total_points: %d" % nb_total_points)

@@ -87,6 +87,94 @@ def read_varuint(f):
         shift = shift + 7
     return ret
 
+def read_bbox(f):
+    vi = read_varuint(f)
+    minx = vi / xyscale + xorig
+    print('minx = %.15f' % minx)
+    vi = read_varuint(f)
+    miny = vi / xyscale + yorig
+    print('miny = %.15f' % miny)
+    vi = read_varuint(f)
+    maxx = minx + vi / xyscale
+    print('maxx = %.15f' % maxx)
+    vi = read_varuint(f)
+    maxy = miny + vi / xyscale
+    print('maxy = %.15f' % maxy)
+
+def read_tab_nbpoints(f, nb_geoms, nb_total_points):
+    nb_acc = 0
+    tab_nb_points = []
+    for i_part in range(nb_geoms - 1):
+        nb_points = read_varuint(f)
+        nb_acc = nb_acc + nb_points
+        print("nb_points[%d] = %d" % (i_part, nb_points))
+        tab_nb_points.append(nb_points)
+    tab_nb_points.append(nb_total_points - nb_acc)
+    print("nb_points[%d] = %d" % (nb_geoms - 1, nb_total_points - nb_acc))
+    return tab_nb_points
+
+def read_tab_xy(f, nb_geoms, tab_nb_points):
+    for i_part in range(nb_geoms):
+        nb_points = tab_nb_points[i_part]
+        for i_point in range(nb_points):
+
+            if i_point == 0 and i_part == 0:
+                vi = read_varint(f)
+                x0 = vi / xyscale + xorig
+                dx_int = 0
+                vi = read_varint(f)
+                y0 = vi / xyscale + yorig
+                dy_int = 0
+                print("[%d] %.15f %.15f" % (i_point+1, x0, y0))
+            else:
+                vi = read_varint(f)
+                dx_int = dx_int + vi
+                x = x0 + dx_int / xyscale
+                dy_int = dy_int + read_varint(f) 
+                y = y0 + dy_int / xyscale
+                print("[%d] %.15f %.15f" % (i_point+1, x, y))
+
+        print('')
+
+def read_tab_z(f, nb_geoms, tab_nb_points):
+    for i_part in range(nb_geoms):
+        nb_points = tab_nb_points[i_part]
+        for i_point in range(nb_points):
+
+            if i_point == 0 and i_part == 0:
+                vi = read_varint(f)
+                z0 = vi / zscale + zorig
+                dz_int = 0
+                print("[%d] z=%.15f" % (i_point+1, z0))
+            else:
+                dz_int = dz_int + read_varint(f) 
+                z = z0 + dz_int / zscale
+                print("[%d] z=%.15f" % (i_point+1,  z))
+
+        print('')
+
+def read_tab_m(f, nb_geoms, tab_nb_points):
+
+    # 0x42 seems to be a special value to indicate absence of m array !
+    if ord(f.read(1)) == 0x42:
+        return
+    f.seek(-1, 1)
+
+    for i_part in range(nb_geoms):
+        nb_points = tab_nb_points[i_part]
+        for i_point in range(nb_points):
+
+            if i_point == 0 and i_part == 0:
+                vi = read_varint(f)
+                m0 = vi / mscale + morig
+                dm_int = 0
+                print("[%d] m=%.15f" % (i_point+1, m0))
+            else:
+                dm_int = dm_int + read_varint(f) 
+                m = m0 + dm_int / mscale
+                print("[%d] m=%.15f" % (i_point+1,  m))
+
+        print('')
 
 filenamex = filename[0:-1] + 'x'
 fx = open(filenamex, 'rb')
@@ -343,6 +431,8 @@ for i in range(nfields):
 print('')
 
 for fid in range(nfeaturesx):
+#for fid in [29863]:
+#for fid in [31590]:
 
     fx.seek(16 + fid * 5, 0)
     feature_offset = read_int32(fx)
@@ -437,15 +527,86 @@ for fid in range(nfeaturesx):
                 print('polygon')
             elif geom_type == 19:
                 print('polygon z')
-
+            # BikeInventory.gdb/a00000009.gdbtable, FID = 29864
+            elif geom_type & 0xff == 50:
+                print('generalpolyline');
+                if (geom_type & 0x80000000) != 0:
+                    print(' has z')
+                if (geom_type & 0x40000000) != 0:
+                    print(' has m')
+                if (geom_type & 0x40000000) != 0:
+                    print(' has curves')
             # /home/even/FileGDB_API/samples/data/Shapes.gdb/a00000027.gdbtable
             elif geom_type & 0xff == 54:
                 print('multipatch');
                 if (geom_type & 0x80000000) != 0:
                     print(' has z')
+                if (geom_type & 0x40000000) != 0:
+                    print(' has m')
             else:
                 print('unhandled geom_type')
 
+
+            if geom_type & 0xff == 50:
+
+                nb_total_points = read_varuint(f)
+                print("nb_total_points: %d" % nb_total_points)
+
+                nb_geoms = read_varuint(f)
+                print('nb_geoms = %d' % nb_geoms)
+
+                # TODO ? Conditionnally or unconditionnally present ?
+                if (geom_type & 0x20000000) != 0:
+                    nb_curves = read_varuint(f)
+                    print("nb_curves: %d" % nb_curves)
+
+                read_bbox(f)
+                tab_nb_points = read_tab_nbpoints(f, nb_geoms, nb_total_points)
+                read_tab_xy(f, nb_geoms, tab_nb_points)
+
+                if (geom_type & 0x80000000) != 0:
+                    read_tab_z(f, nb_geoms, tab_nb_points)
+
+                if (geom_type & 0x40000000) != 0:
+                    read_tab_m(f, nb_geoms, tab_nb_points)
+
+                if (geom_type & 0x20000000) != 0:
+                    print('curves:')
+                    for i in range(nb_curves):
+                        print('curve %d:' % i)
+                        start_index = read_varuint(f)
+                        curve_type =  read_varuint(f)
+                        print('start_index = %d' % start_index)
+                        print('curve_type = %d' % curve_type)
+                        if curve_type == 1:
+                            print(' --> circular arc')
+                            print('d1 = %f' % read_float64(f))
+                            print('d2 = %f' % read_float64(f))
+                            print('bits = %d' % read_int32(f))
+                        elif curve_type == 2:
+                            print(' --> line arc')
+                            print('should not happen')
+                        elif curve_type == 3:
+                            print(' --> spiral arc')
+                            print('undocumented')
+                        elif curve_type == 4:
+                            print(' --> bezier arc')
+                            print('p0.x = %f' % read_float64(f))
+                            print('p0.y = %f' % read_float64(f))
+                            print('p1.x = %f' % read_float64(f))
+                            print('p1.y = %f' % read_float64(f))
+                        elif curve_type == 5:
+                            print(' --> elliptic arc')
+                            print('p0.x = %f' % read_float64(f))
+                            print('p0.y = %f' % read_float64(f))
+                            print('p1.x = %f' % read_float64(f))
+                            print('p1.y = %f' % read_float64(f))
+                            print('rotation or fromv = %f' % read_float64(f))
+                            print('semimajor = %f' % read_float64(f))
+                            print('minormajorratio or deltav = %f' % read_float64(f))
+                            print('bits = %d' % read_int32(f))
+                        else:
+                            print('unexpected value')
 
             if geom_type & 0xff == 54:
 
@@ -459,28 +620,8 @@ for fid in range(nfeaturesx):
                 nb_geoms = read_varuint(f)
                 print("nb_geoms: %d" % nb_geoms)
 
-                vi = read_varuint(f)
-                minx = vi / xyscale + xorig
-                print('minx = %.15f' % minx)
-                vi = read_varuint(f)
-                miny = vi / xyscale + yorig
-                print('miny = %.15f' % miny)
-                vi = read_varuint(f)
-                maxx = minx + vi / xyscale
-                print('maxx = %.15f' % maxx)
-                vi = read_varuint(f)
-                maxy = miny + vi / xyscale
-                print('maxy = %.15f' % maxy)
-
-                nb_acc = 0
-                tab_nb_points = []
-                for i_part in range(nb_geoms - 1):
-                    nb_points = read_varuint(f)
-                    nb_acc = nb_acc + nb_points
-                    print("nb_points[%d] = %d" % (i_part, nb_points))
-                    tab_nb_points.append(nb_points)
-                tab_nb_points.append(nb_total_points - nb_acc)
-                print("nb_points[%d] = %d" % (nb_geoms - 1, nb_total_points - nb_acc))
+                read_bbox(f)
+                tab_nb_points = read_tab_nbpoints(f, nb_geoms, nb_total_points)
 
                 subgeomtype = []
                 for i_part in range(nb_geoms):
@@ -491,64 +632,13 @@ for fid in range(nfeaturesx):
                     print("type[%d] = %d (%s)" % (i_part, type, multipatch_part_type_to_str(type)))
                     subgeomtype.append(type)
 
-                for i_part in range(nb_geoms):
-                    #print('type = %d' % subgeomtype[i_part])
-                    nb_points = tab_nb_points[i_part]
-                    if i_part > 0:
-                        dx_int = dx_int + read_varint(f) 
-                        x = x0 + dx_int / xyscale
-                        dy_int = dy_int + read_varint(f) 
-                        y = y0 + dy_int / xyscale
-                        i_point = 1
-                        print("[%d] %.15f %.15f" % (i_point, x, y))
-                    else:
-                        i_point = 1
-                        vi = read_varint(f)
-                        x0 = vi / xyscale + xorig
-                        dx_int = 0
-                        vi = read_varint(f)
-                        y0 = vi / xyscale + yorig
-                        dy_int = 0
-                        print("[%d] %.15f %.15f" % (i_point, x0, y0))
-
-                    while True:
-                        vi = read_varint(f)
-                        dx_int = dx_int + vi
-                        x = x0 + dx_int / xyscale
-                        dy_int = dy_int + read_varint(f) 
-                        y = y0 + dy_int / xyscale
-                        i_point = i_point + 1
-                        print("[%d] %.15f %.15f" % (i_point, x, y))
-                        if i_point == nb_points:
-                            print('')
-                            break
+                read_tab_xy(f, nb_geoms, tab_nb_points)
 
                 if (geom_type & 0x80000000) != 0:
+                    read_tab_z(f, nb_geoms, tab_nb_points)
 
-                    for i_part in range(nb_geoms):
-                        #print('type = %d' % subgeomtype[i_part])
-                        nb_points = tab_nb_points[i_part]
-                        if i_part > 0:
-                            dz_int = dz_int + read_varint(f) 
-                            z = z0 + dz_int / zscale
-                            i_point = 1
-                            print("[%d] z=%.15f" % (i_point, z))
-                        else:
-                            i_point = 1
-                            vi = read_varint(f)
-                            z0 = vi / zscale + zorig
-                            dz_int = 0
-                            print("[%d] z=%.15f" % (i_point, z0))
-
-                        while True:
-                            vi = read_varint(f)
-                            dz_int = dz_int + vi
-                            z = z0 + dz_int / zscale
-                            i_point = i_point + 1
-                            print("[%d] z=%.15f" % (i_point, z))
-                            if i_point == nb_points:
-                                print('')
-                                break
+                if (geom_type & 0x40000000) != 0:
+                    read_tab_m(f, nb_geoms, tab_nb_points)
 
                 #print("actual_length = %d vs %d" % (f.tell() - saved_offset, geom_len))
 
@@ -556,18 +646,7 @@ for fid in range(nfeaturesx):
                 nb_total_points = read_varuint(f)
                 print("nb_total_points: %d" % nb_total_points)
 
-                vi = read_varuint(f)
-                minx = vi / xyscale + xorig
-                print('minx = %.15f' % minx)
-                vi = read_varuint(f)
-                miny = vi / xyscale + yorig
-                print('miny = %.15f' % miny)
-                vi = read_varuint(f)
-                maxx = minx + vi / xyscale
-                print('maxx = %.15f' % maxx)
-                vi = read_varuint(f)
-                maxy = miny + vi / xyscale
-                print('maxy = %.15f' % maxy)
+                read_bbox(f)
 
                 for i in range(nb_total_points):
                     if i == 0:
@@ -605,7 +684,7 @@ for fid in range(nfeaturesx):
                 vi = read_varuint(f)
                 y0 = vi / xyscale + yorig
                 print("%.15f %.15f" % (x0, y0))
-                
+
             if geom_type == 9:
                 vi = read_varuint(f)
                 x0 = vi / xyscale + xorig
@@ -614,93 +693,22 @@ for fid in range(nfeaturesx):
                 vi = read_varuint(f)
                 z0 = vi / zscale + zorig
                 print("%.15f %.15f %.15f" % (x0, y0, z0))
-            
+
             if geom_type == 3 or geom_type == 5 or geom_type == 10 or geom_type == 13 or geom_type == 23 or geom_type == 19:
 
                 nb_total_points = read_varuint(f)
                 print("nb_total_points: %d" % nb_total_points)
                 nb_geoms = read_varuint(f)
                 print("nb_geoms: %d" % nb_geoms)
-                vi = read_varuint(f)
-                minx = vi / xyscale + xorig
-                print('minx = %.15f' % minx)
-                vi = read_varuint(f)
-                miny = vi / xyscale + yorig
-                print('miny = %.15f' % miny)
-                vi = read_varuint(f)
-                maxx = minx + vi / xyscale
-                print('maxx = %.15f' % maxx)
-                vi = read_varuint(f)
-                maxy = miny + vi / xyscale
-                print('maxy = %.15f' % maxy)
 
-                nb_acc = 0
-                tab_nb_points = []
-                for i_part in range(nb_geoms - 1):
-                    nb_points = read_varuint(f)
-                    nb_acc = nb_acc + nb_points
-                    print("nb_points[%d] = %d" % (i_part, nb_points))
-                    tab_nb_points.append(nb_points)
-                tab_nb_points.append(nb_total_points - nb_acc)
-
-                for i_part in range(nb_geoms):
-                    nb_points = tab_nb_points[i_part]
-                    if i_part > 0:
-                        dx_int = dx_int + read_varint(f) 
-                        x = x0 + dx_int / xyscale
-                        dy_int = dy_int + read_varint(f) 
-                        y = y0 + dy_int / xyscale
-                        i_point = 1
-                        print("[%d] %.15f %.15f" % (i_point, x, y))
-                    else:
-                        i_point = 1
-                        vi = read_varint(f)
-                        x0 = vi / xyscale + xorig
-                        dx_int = 0
-                        vi = read_varint(f)
-                        y0 = vi / xyscale + yorig
-                        dy_int = 0
-                        print("[%d] %.15f %.15f" % (i_point, x0, y0))
-
-                    while True:
-                        vi = read_varint(f)
-                        dx_int = dx_int + vi
-                        x = x0 + dx_int / xyscale
-                        dy_int = dy_int + read_varint(f) 
-                        y = y0 + dy_int / xyscale
-                        i_point = i_point + 1
-                        print("[%d] %.15f %.15f" % (i_point, x, y))
-                        if i_point == nb_points:
-                            print('')
-                            break
+                read_bbox(f)
+                tab_nb_points = read_tab_nbpoints(f, nb_geoms, nb_total_points)
+                read_tab_xy(f, nb_geoms, tab_nb_points)
 
                 # z
                 if geom_type == 10 or geom_type == 13 or geom_type == 19:
+                    read_tab_z(f, nb_geoms, tab_nb_points)
 
-                    for i_part in range(nb_geoms):
-                        nb_points = tab_nb_points[i_part]
-                        if i_part > 0:
-                            dz_int = dz_int + read_varint(f) 
-                            z = z0 + dz_int / zscale
-                            i_point = 1
-                            print("[%d] z=%.15f" % (i_point, z))
-                        else:
-                            i_point = 1
-                            vi = read_varint(f)
-                            z0 = vi / zscale + zorig
-                            dz_int = 0
-                            print("[%d] z=%.15f" % (i_point, z0))
-
-                        while True:
-                            vi = read_varint(f)
-                            dz_int = dz_int + vi
-                            z = z0 + dz_int / zscale
-                            i_point = i_point + 1
-                            print("[%d] z=%.15f" % (i_point, z))
-                            if i_point == nb_points:
-                                print('')
-                                break
-                                
                 print('cur_offset = %d' % f.tell())
 
             f.seek(saved_offset + geom_len, 0)

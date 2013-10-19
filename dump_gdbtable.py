@@ -679,18 +679,18 @@ for fid in range(nfeaturesx):
                             print("[%d] z=%.15f" % (i, z))
 
             if geom_type == 1:
-                vi = read_varuint(f)
+                vi = read_varuint(f) - 1
                 x0 = vi / xyscale + xorig
-                vi = read_varuint(f)
+                vi = read_varuint(f) - 1
                 y0 = vi / xyscale + yorig
                 print("%.15f %.15f" % (x0, y0))
 
             if geom_type == 9:
-                vi = read_varuint(f)
+                vi = read_varuint(f) - 1
                 x0 = vi / xyscale + xorig
-                vi = read_varuint(f)
+                vi = read_varuint(f) - 1
                 y0 = vi / xyscale + yorig
-                vi = read_varuint(f)
+                vi = read_varuint(f) - 1
                 z0 = vi / zscale + zorig
                 print("%.15f %.15f %.15f" % (x0, y0, z0))
 

@@ -278,10 +278,12 @@ for i in range(nfields):
     print('')
     nbcar =  ord(f.read(1))
     
-    # PreNIS.gdb/a00000009.gdbtable has 0's after some fields !
-    while nbcar == 0:
-        print('skipping zero byte')
-        nbcar =  ord(f.read(1))
+    if False:
+        # obsolete logic since we have discovered default values
+        # PreNIS.gdb/a00000009.gdbtable has 0's after some fields !
+        while nbcar == 0:
+            print('skipping zero byte')
+            nbcar =  ord(f.read(1))
     
     print('nbcar = %d' % nbcar)
     name = ''
@@ -392,8 +394,11 @@ for i in range(nfields):
         if (flag & 1) == 0:
             fd.nullable = False
         print('flag = %d' % flag)
-        print('magic = %d' % ord(f.read(1)))
-        
+        default_value_length = ord(f.read(1))
+        print('default_value_length = %d' % default_value_length)
+        if (flag & 4) != 0 and default_value_length > 0:
+            print('default value: %s' % f.read(default_value_length))
+
     # binary
     elif type == 8:
         f.read(1)
@@ -418,7 +423,10 @@ for i in range(nfields):
         if (flag & 1) == 0:
             fd.nullable = False
         print('flag = %d' % flag)
-        print('magic = %d' % ord(f.read(1)))
+        default_value_length = ord(f.read(1))
+        print('default_value_length = %d' % default_value_length)
+        if (flag & 4) != 0:
+            f.read(default_value_length)
     
     if fd.nullable:
         has_flags = True

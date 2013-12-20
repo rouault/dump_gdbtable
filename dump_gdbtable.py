@@ -114,42 +114,29 @@ def read_tab_nbpoints(f, nb_geoms, nb_total_points):
     return tab_nb_points
 
 def read_tab_xy(f, nb_geoms, tab_nb_points):
+    dx_int = dy_int = 0
     for i_part in range(nb_geoms):
         nb_points = tab_nb_points[i_part]
         for i_point in range(nb_points):
 
-            if i_point == 0 and i_part == 0:
-                vi = read_varint(f)
-                x0 = vi / xyscale + xorig
-                dx_int = 0
-                vi = read_varint(f)
-                y0 = vi / xyscale + yorig
-                dy_int = 0
-                print("[%d] %.15f %.15f" % (i_point+1, x0, y0))
-            else:
-                vi = read_varint(f)
-                dx_int = dx_int + vi
-                x = x0 + dx_int / xyscale
-                dy_int = dy_int + read_varint(f) 
-                y = y0 + dy_int / xyscale
-                print("[%d] %.15f %.15f" % (i_point+1, x, y))
+            vi = read_varint(f)
+            dx_int = dx_int + vi
+            x = dx_int / xyscale + xorig
+            dy_int = dy_int + read_varint(f) 
+            y = dy_int / xyscale + yorig
+            print("[%d] %.15f %.15f" % (i_point+1, x, y))
 
         print('')
 
 def read_tab_z(f, nb_geoms, tab_nb_points):
+    dz_int = 0
     for i_part in range(nb_geoms):
         nb_points = tab_nb_points[i_part]
         for i_point in range(nb_points):
 
-            if i_point == 0 and i_part == 0:
-                vi = read_varint(f)
-                z0 = vi / zscale + zorig
-                dz_int = 0
-                print("[%d] z=%.15f" % (i_point+1, z0))
-            else:
-                dz_int = dz_int + read_varint(f) 
-                z = z0 + dz_int / zscale
-                print("[%d] z=%.15f" % (i_point+1,  z))
+            dz_int = dz_int + read_varint(f) 
+            z = dz_int / zscale + zorig
+            print("[%d] z=%.15f" % (i_point+1,  z))
 
         print('')
 
@@ -656,35 +643,23 @@ for fid in range(nfeaturesx):
 
                 read_bbox(f)
 
+                dx_int = dy_int = 0
                 for i in range(nb_total_points):
-                    if i == 0:
-                        vi = read_varint(f)
-                        x0 = vi / xyscale + xorig
-                        vi = read_varint(f)
-                        y0 = vi / xyscale + yorig
-                        print("[%d] x=%.15f y=%.15f" % (i, x0, y0))
-                        dx_int = dy_int = dz_int = 0
-                    else:
-                        vi = read_varint(f)
-                        dx_int = dx_int + vi
-                        x = x0 + dx_int / xyscale
-                        vi = read_varint(f) 
-                        dy_int = dy_int + vi
-                        y = y0 + dy_int / xyscale
-                        print("[%d] x=%.15f y=%.15f" % (i, x, y))
+                    vi = read_varint(f)
+                    dx_int = dx_int + vi
+                    x = dx_int / xyscale + xorig
+                    vi = read_varint(f) 
+                    dy_int = dy_int + vi
+                    y = dy_int / xyscale + yorig
+                    print("[%d] x=%.15f y=%.15f" % (i, x, y))
 
                 if geom_type == 18 or geom_type == 20:
+                    dz_int = 0
                     for i in range(nb_total_points):
-                        if i == 0:
-                            vi = read_varint(f)
-                            z0 = vi / zscale  + zorig
-                            print("[%d] z=%.15f" % (i, z0))
-                            dx_int = dy_int = dz_int = 0
-                        else:
-                            vi = read_varint(f) 
-                            dz_int = dz_int + vi
-                            z = z0 + dz_int / zscale
-                            print("[%d] z=%.15f" % (i, z))
+                        vi = read_varint(f) 
+                        dz_int = dz_int + vi
+                        z = dz_int / zscale + zorig
+                        print("[%d] z=%.15f" % (i, z))
 
             if geom_type == 1:
                 vi = read_varuint(f) - 1

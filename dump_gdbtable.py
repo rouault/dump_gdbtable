@@ -303,9 +303,12 @@ for i in range(nfields):
     # shape
     elif type == 7:
         magic1 = ord(f.read(1)) # 0
-        magic2 = ord(f.read(1)) # 6 or 7
+        flag = ord(f.read(1)) # 6 or 7
+        if (flag & 1) == 0:
+            fd.nullable = False
+        
         print('magic1 = %d' % magic1)
-        print('magic2 = %d' % magic2)
+        print('flag = %d' % flag)
         wkt_len = ord(f.read(1))
         wkt_len += ord(f.read(1)) * 256
         

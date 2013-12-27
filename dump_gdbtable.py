@@ -232,6 +232,8 @@ def field_type_to_str(type):
         return 'geometry'
     if type == 8:
         return 'binary'
+    if type == 9:
+        return 'raster'
     if type == 10:
         return 'UUID'
     if type == 11:
@@ -396,7 +398,73 @@ for i in range(nfields):
         if (flag & 1) == 0:
             fd.nullable = False
         print('flag = %d' % flag)
-      
+
+    # raster
+    elif type == 9:
+        f.read(1)
+        flag = ord(f.read(1))
+        if (flag & 1) == 0:
+            fd.nullable = False
+        print('flag = %d' % flag)
+        
+        nbcar = ord(f.read(1))
+        print('nbcar = %d' % nbcar)
+        raster_column = ''
+        for j in range(nbcar):
+            raster_column = raster_column + '%c' % f.read(1)
+            f.read(1)
+        print('raster_column = %s' % raster_column)
+
+        wkt_len = ord(f.read(1))
+        wkt_len += ord(f.read(1)) * 256
+        
+        wkt = ''
+        for j in range(wkt_len / 2):
+            wkt = wkt + '%c' % f.read(1)
+            f.read(1)
+        print('wkt = %s' % wkt)
+        
+        #f.read(82)
+        
+        magic3 = ord(f.read(1))
+        print('magic3 = %d' % magic3)
+        
+        raster_has_m = False
+        raster_has_z = False
+        if magic3 == 5:
+            raster_has_z = True
+        if magic3 == 7:
+            raster_has_m = True
+            raster_has_z = True
+
+        raster_xorig = read_float64(f)
+        print('xorigin = %.15f' % raster_xorig)
+        raster_yorig = read_float64(f)
+        print('yorigin = %.15f' % raster_yorig)
+        raster_xyscale = read_float64(f)
+        print('xyscale = %.15f' % raster_xyscale)
+        if raster_has_m:
+            raster_morig = read_float64(f)
+            print('morigin = %.15f' % raster_morig)
+            raster_mscale = read_float64(f)
+            print('mscale = %.15f' % raster_mscale)
+        if raster_has_z:
+            raster_zorig = read_float64(f)
+            print('zorigin = %.15f' % raster_zorig)
+            raster_zscale = read_float64(f)
+            print('zscale = %.15f' % raster_zscale)
+        raster_xytolerance = read_float64(f)
+        print('xytolerance = %.15f' % raster_xytolerance)
+        if raster_has_m:
+            raster_mtolerance = read_float64(f)
+            print('mtolerance = %.15f' % raster_mtolerance)
+        if raster_has_z:
+            raster_ztolerance = read_float64(f)
+            print('ztolerance = %.15f' % raster_ztolerance)
+
+        print(ord(f.read(1)))
+        
+
     # UUID or XML
     elif type == 11 or type == 10 or type == 12:
         width = ord(f.read(1))
@@ -490,7 +558,19 @@ for fid in range(nfeaturesx):
         elif fields[ifield].type == 5:
             val = read_float64(f)
             print('Field %s : %f days since 1899/12/30' % (fields[ifield].name, val))
-            
+
+        elif fields[ifield].type == 8:
+            length = read_varuint(f)
+            val = f.read(length)
+            print('Field %s : "%s" (len=%d)' % (fields[ifield].name, val, length))
+
+        elif fields[ifield].type == 9:
+            length = read_int32(f)
+            #length = read_varuint(f)
+            #val = f.read(length)
+            val = ''
+            print('Field %s : "%s" (len=%d)' % (fields[ifield].name, val, length))
+
         elif fields[ifield].type == 10 or fields[ifield].type == 11:
             val = f.read(16)
             print('Field %s : "%s"' % (fields[ifield].name, ''.join(x.encode('hex') for x in val)))

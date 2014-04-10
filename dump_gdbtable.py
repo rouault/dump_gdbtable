@@ -124,7 +124,8 @@ def read_tab_xy(f, nb_geoms, tab_nb_points):
             x = dx_int / xyscale + xorig
             dy_int = dy_int + read_varint(f) 
             y = dy_int / xyscale + yorig
-            print("[%d] %.15f %.15f" % (i_point+1, x, y))
+            if i_point < 10 or i_point > nb_points - 10:
+                print("[%d] %.15f %.15f" % (i_point+1, x, y))
 
         print('')
 
@@ -136,7 +137,8 @@ def read_tab_z(f, nb_geoms, tab_nb_points):
 
             dz_int = dz_int + read_varint(f) 
             z = dz_int / zscale + zorig
-            print("[%d] z=%.15f" % (i_point+1,  z))
+            if i_point < 10 or i_point > nb_points - 10:
+                print("[%d] z=%.15f" % (i_point+1,  z))
 
         print('')
 
@@ -612,7 +614,16 @@ for fid in range(nfeaturesx):
                     print(' has z')
                 if (geom_type & 0x40000000) != 0:
                     print(' has m')
+                if (geom_type & 0x20000000) != 0:
+                    print(' has curves')
+            # http://frap.cdf.ca.gov/data/frapgisdata-sw-cdfadmin13_1_download.php
+            elif geom_type & 0xff == 51:
+                print('generalpolygon');
+                if (geom_type & 0x80000000) != 0:
+                    print(' has z')
                 if (geom_type & 0x40000000) != 0:
+                    print(' has m')
+                if (geom_type & 0x20000000) != 0:
                     print(' has curves')
             # /home/even/FileGDB_API/samples/data/Shapes.gdb/a00000027.gdbtable
             elif geom_type & 0xff == 54:
@@ -685,6 +696,31 @@ for fid in range(nfeaturesx):
                             print('bits = %d' % read_int32(f))
                         else:
                             print('unexpected value')
+
+            if geom_type & 0xff == 51:
+
+                nb_total_points = read_varuint(f)
+                print("nb_total_points: %d" % nb_total_points)
+
+                nb_geoms = read_varuint(f)
+                print("nb_geoms: %d" % nb_geoms)
+
+                # TODO ? Conditionnally or unconditionnally present ?
+                if (geom_type & 0x20000000) != 0:
+                    nb_curves = read_varuint(f)
+                    print("nb_curves: %d" % nb_curves)
+
+                read_bbox(f)
+                tab_nb_points = read_tab_nbpoints(f, nb_geoms, nb_total_points)
+                read_tab_xy(f, nb_geoms, tab_nb_points)
+
+                if (geom_type & 0x80000000) != 0:
+                    read_tab_z(f, nb_geoms, tab_nb_points)
+
+                if (geom_type & 0x40000000) != 0:
+                    read_tab_m(f, nb_geoms, tab_nb_points)
+
+                #print("actual_length = %d vs %d" % (f.tell() - saved_offset, geom_len))
 
             if geom_type & 0xff == 54:
 

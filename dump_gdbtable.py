@@ -431,38 +431,39 @@ for i in range(nfields):
         magic3 = ord(f.read(1))
         print('magic3 = %d' % magic3)
         
-        raster_has_m = False
-        raster_has_z = False
-        if magic3 == 5:
-            raster_has_z = True
-        if magic3 == 7:
-            raster_has_m = True
-            raster_has_z = True
+        if magic3 > 0:
+            raster_has_m = False
+            raster_has_z = False
+            if magic3 == 5:
+                raster_has_z = True
+            if magic3 == 7:
+                raster_has_m = True
+                raster_has_z = True
 
-        raster_xorig = read_float64(f)
-        print('xorigin = %.15f' % raster_xorig)
-        raster_yorig = read_float64(f)
-        print('yorigin = %.15f' % raster_yorig)
-        raster_xyscale = read_float64(f)
-        print('xyscale = %.15f' % raster_xyscale)
-        if raster_has_m:
-            raster_morig = read_float64(f)
-            print('morigin = %.15f' % raster_morig)
-            raster_mscale = read_float64(f)
-            print('mscale = %.15f' % raster_mscale)
-        if raster_has_z:
-            raster_zorig = read_float64(f)
-            print('zorigin = %.15f' % raster_zorig)
-            raster_zscale = read_float64(f)
-            print('zscale = %.15f' % raster_zscale)
-        raster_xytolerance = read_float64(f)
-        print('xytolerance = %.15f' % raster_xytolerance)
-        if raster_has_m:
-            raster_mtolerance = read_float64(f)
-            print('mtolerance = %.15f' % raster_mtolerance)
-        if raster_has_z:
-            raster_ztolerance = read_float64(f)
-            print('ztolerance = %.15f' % raster_ztolerance)
+            raster_xorig = read_float64(f)
+            print('xorigin = %.15f' % raster_xorig)
+            raster_yorig = read_float64(f)
+            print('yorigin = %.15f' % raster_yorig)
+            raster_xyscale = read_float64(f)
+            print('xyscale = %.15f' % raster_xyscale)
+            if raster_has_m:
+                raster_morig = read_float64(f)
+                print('morigin = %.15f' % raster_morig)
+                raster_mscale = read_float64(f)
+                print('mscale = %.15f' % raster_mscale)
+            if raster_has_z:
+                raster_zorig = read_float64(f)
+                print('zorigin = %.15f' % raster_zorig)
+                raster_zscale = read_float64(f)
+                print('zscale = %.15f' % raster_zscale)
+            raster_xytolerance = read_float64(f)
+            print('xytolerance = %.15f' % raster_xytolerance)
+            if raster_has_m:
+                raster_mtolerance = read_float64(f)
+                print('mtolerance = %.15f' % raster_mtolerance)
+            if raster_has_z:
+                raster_ztolerance = read_float64(f)
+                print('ztolerance = %.15f' % raster_ztolerance)
 
         print(ord(f.read(1)))
         

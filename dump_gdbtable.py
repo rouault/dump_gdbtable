@@ -388,7 +388,7 @@ for i in range(nfields):
         if (flag & 1) == 0:
             fd.nullable = False
         print('flag = %d' % flag)
-        default_value_length = ord(f.read(1))
+        default_value_length = read_varuint(f)
         print('default_value_length = %d' % default_value_length)
         if (flag & 4) != 0 and default_value_length > 0:
             print('default value: %s' % f.read(default_value_length))

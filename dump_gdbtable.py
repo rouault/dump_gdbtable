@@ -171,6 +171,9 @@ fx.seek(8, 0)
 nfeaturesx = read_int32(fx)
 print('nfeaturesx = %d' % nfeaturesx)
 
+size_tablx_offsets = read_int32(fx)
+print('size_tablx_offsets = %d' % size_tablx_offsets)
+
 f = open(filename, 'rb')
 f.seek(4, 0)
 nfeatures = read_int32(f)
@@ -503,7 +506,7 @@ for fid in range(nfeaturesx):
 #for fid in [29863]:
 #for fid in [31590]:
 
-    fx.seek(16 + fid * 5, 0)
+    fx.seek(16 + fid * size_tablx_offsets, 0)
     feature_offset = read_int32(fx)
 
     if feature_offset == 0:

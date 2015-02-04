@@ -490,7 +490,18 @@ for i in range(nfields):
         default_value_length = ord(f.read(1))
         print('default_value_length = %d' % default_value_length)
         if (flag & 4) != 0:
-            f.read(default_value_length)
+            if type == 0 and default_value_length == 2:
+                print('default_value = %d' % read_int16(f))
+            elif type == 1 and default_value_length == 4:
+                print('default_value = %d' % read_int32(f))
+            elif type == 2 and default_value_length == 4:
+                print('default_value = %f' % read_float32(f))
+            elif type == 3 and default_value_length == 8:
+                print('default_value = %f' % read_float64(f))
+            elif type == 5 and default_value_length == 8:
+                print('default_value = %f' % read_float64(f))
+            else:
+                f.read(default_value_length)
     
     if fd.nullable:
         has_flags = True

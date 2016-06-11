@@ -264,6 +264,60 @@ def multipatch_part_type_to_str(type):
         return "triangles"
     return "unknown"
 
+def read_curves(f):
+    print('curves:')
+    for i in range(nb_curves):
+        print('curve %d:' % i)
+        start_index = read_varuint(f)
+        curve_type =  read_varuint(f)
+        print('start_index = %d' % start_index)
+        print('curve_type = %d' % curve_type)
+        if curve_type == 1:
+            print(' --> circular arc')
+            print('d1 = %f' % read_float64(f))
+            print('d2 = %f' % read_float64(f))
+            bits = read_int32(f)
+            print('bits = %d' % bits)
+            if (bits & 0x1):  print(' IsEmpty')
+            if (bits & 0x8):  print(' IsCCW')
+            if (bits & 0x10): print(' IsMinor')
+            if (bits & 0x20): print(' IsLine')
+            if (bits & 0x40): print(' IsPoint')
+            if (bits & 0x80): print(' DefinedIP')
+        elif curve_type == 2:
+            print(' --> line arc')
+            print('should not happen')
+        elif curve_type == 3:
+            print(' --> spiral arc')
+            print('undocumented')
+        elif curve_type == 4:
+            print(' --> bezier arc')
+            print('p0.x = %f' % read_float64(f))
+            print('p0.y = %f' % read_float64(f))
+            print('p1.x = %f' % read_float64(f))
+            print('p1.y = %f' % read_float64(f))
+        elif curve_type == 5:
+            print(' --> elliptic arc')
+            print('vs0 = %f' % read_float64(f))
+            print('vs1 = %f' % read_float64(f))
+            print('rotation or fromv = %f' % read_float64(f))
+            print('semimajor = %f' % read_float64(f))
+            print('minormajorratio or deltav = %f' % read_float64(f))
+            bits = read_int32(f)
+            print('bits = %d' % bits)
+            if (bits & 0x1):    print(' IsEmpty')
+            if (bits & 0x40):   print(' IsLine')
+            if (bits & 0x80):   print(' IsPoint')
+            if (bits & 0x100):  print(' IsCircular')
+            if (bits & 0x200):  print(' CenterTo')
+            if (bits & 0x400):  print(' CenterFrom')
+            if (bits & 0x800):  print(' IsCCW')
+            if (bits & 0x1000): print(' IsMinor')
+            if (bits & 0x2000): print(' IsComplete')
+        else:
+            print('unexpected value')
+
+
 for i in range(nfields):
     
     fd = FieldDesc()
@@ -675,42 +729,7 @@ for fid in range(nfeaturesx):
                     read_tab_m(f, nb_geoms, tab_nb_points)
 
                 if (geom_type & 0x20000000) != 0:
-                    print('curves:')
-                    for i in range(nb_curves):
-                        print('curve %d:' % i)
-                        start_index = read_varuint(f)
-                        curve_type =  read_varuint(f)
-                        print('start_index = %d' % start_index)
-                        print('curve_type = %d' % curve_type)
-                        if curve_type == 1:
-                            print(' --> circular arc')
-                            print('d1 = %f' % read_float64(f))
-                            print('d2 = %f' % read_float64(f))
-                            print('bits = %d' % read_int32(f))
-                        elif curve_type == 2:
-                            print(' --> line arc')
-                            print('should not happen')
-                        elif curve_type == 3:
-                            print(' --> spiral arc')
-                            print('undocumented')
-                        elif curve_type == 4:
-                            print(' --> bezier arc')
-                            print('p0.x = %f' % read_float64(f))
-                            print('p0.y = %f' % read_float64(f))
-                            print('p1.x = %f' % read_float64(f))
-                            print('p1.y = %f' % read_float64(f))
-                        elif curve_type == 5:
-                            print(' --> elliptic arc')
-                            print('p0.x = %f' % read_float64(f))
-                            print('p0.y = %f' % read_float64(f))
-                            print('p1.x = %f' % read_float64(f))
-                            print('p1.y = %f' % read_float64(f))
-                            print('rotation or fromv = %f' % read_float64(f))
-                            print('semimajor = %f' % read_float64(f))
-                            print('minormajorratio or deltav = %f' % read_float64(f))
-                            print('bits = %d' % read_int32(f))
-                        else:
-                            print('unexpected value')
+                    read_curves(f)
 
             if geom_type & 0xff == 51:
 
@@ -734,6 +753,9 @@ for fid in range(nfeaturesx):
 
                 if (geom_type & 0x40000000) != 0:
                     read_tab_m(f, nb_geoms, tab_nb_points)
+
+                if (geom_type & 0x20000000) != 0:
+                    read_curves(f)
 
                 #print("actual_length = %d vs %d" % (f.tell() - saved_offset, geom_len))
 

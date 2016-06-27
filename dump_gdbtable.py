@@ -709,6 +709,9 @@ for fid in range(nfeaturesx):
 
                 nb_total_points = read_varuint(f)
                 print("nb_total_points: %d" % nb_total_points)
+                if nb_total_points == 0:
+                    f.seek(saved_offset + geom_len, 0)
+                    continue
 
                 nb_geoms = read_varuint(f)
                 print('nb_geoms = %d' % nb_geoms)
@@ -735,6 +738,9 @@ for fid in range(nfeaturesx):
 
                 nb_total_points = read_varuint(f)
                 print("nb_total_points: %d" % nb_total_points)
+                if nb_total_points == 0:
+                    f.seek(saved_offset + geom_len, 0)
+                    continue
 
                 nb_geoms = read_varuint(f)
                 print("nb_geoms: %d" % nb_geoms)
@@ -763,6 +769,9 @@ for fid in range(nfeaturesx):
 
                 nb_total_points = read_varuint(f)
                 print("nb_total_points: %d" % nb_total_points)
+                if nb_total_points == 0:
+                    f.seek(saved_offset + geom_len, 0)
+                    continue
 
                 # what's that ???
                 magic = read_varuint(f)
@@ -796,6 +805,9 @@ for fid in range(nfeaturesx):
             if geom_type == 8 or geom_type == 18 or geom_type == 20:
                 nb_total_points = read_varuint(f)
                 print("nb_total_points: %d" % nb_total_points)
+                if nb_total_points == 0:
+                    f.seek(saved_offset + geom_len, 0)
+                    continue
 
                 read_bbox(f)
 
@@ -837,6 +849,9 @@ for fid in range(nfeaturesx):
 
                 nb_total_points = read_varuint(f)
                 print("nb_total_points: %d" % nb_total_points)
+                if nb_total_points == 0:
+                    f.seek(saved_offset + geom_len, 0)
+                    continue
                 nb_geoms = read_varuint(f)
                 print("nb_geoms: %d" % nb_geoms)
 

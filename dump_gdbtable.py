@@ -181,7 +181,9 @@ print('nfeatures = %d' % nfeatures)
 
 
 f.seek(32, 0)
-header_offset = read_int32(f)
+header_offset_low = read_int32(f)
+header_offset_high = read_int32(f)
+header_offset = header_offset_low | (header_offset_high << 32)
 print('header_offset = %d' % header_offset)
 
 f.seek(header_offset, 0)

@@ -676,8 +676,12 @@ for fid in range(nfeaturesx):
                 print('polyline m')
             elif geom_type == 5:
                 print('polygon')
+            elif geom_type == 15:
+                print('polygon zm')
             elif geom_type == 19:
                 print('polygon z')
+            elif geom_type == 25:
+                print('polygon m')
             # BikeInventory.gdb/a00000009.gdbtable, FID = 29864
             elif geom_type & 0xff == 50:
                 print('generalpolyline');
@@ -804,7 +808,7 @@ for fid in range(nfeaturesx):
 
                 #print("actual_length = %d vs %d" % (f.tell() - saved_offset, geom_len))
 
-            if geom_type == 8 or geom_type == 18 or geom_type == 20:
+            if geom_type in (8, 18, 20):
                 nb_total_points = read_varuint(f)
                 print("nb_total_points: %d" % nb_total_points)
                 if nb_total_points == 0:
@@ -823,7 +827,7 @@ for fid in range(nfeaturesx):
                     y = dy_int / xyscale + yorig
                     print("[%d] x=%.15f y=%.15f" % (i, x, y))
 
-                if geom_type == 18 or geom_type == 20:
+                if geom_type in (18, 20):
                     dz_int = 0
                     for i in range(nb_total_points):
                         vi = read_varint(f) 
@@ -847,7 +851,7 @@ for fid in range(nfeaturesx):
                 z0 = vi / zscale + zorig
                 print("%.15f %.15f %.15f" % (x0, y0, z0))
 
-            if geom_type == 3 or geom_type == 5 or geom_type == 10 or geom_type == 13 or geom_type == 23 or geom_type == 19:
+            if geom_type in (3, 5, 10, 13, 15, 19, 23, 25):
 
                 nb_total_points = read_varuint(f)
                 print("nb_total_points: %d" % nb_total_points)
@@ -862,8 +866,12 @@ for fid in range(nfeaturesx):
                 read_tab_xy(f, nb_geoms, tab_nb_points)
 
                 # z
-                if geom_type == 10 or geom_type == 13 or geom_type == 19:
+                if geom_type in (10, 13, 15, 19):
                     read_tab_z(f, nb_geoms, tab_nb_points)
+
+                # m
+                if geom_type in (13, 15, 23, 25):
+                    read_tab_m(f, nb_geoms, tab_nb_points)
 
                 print('cur_offset = %d' % f.tell())
 

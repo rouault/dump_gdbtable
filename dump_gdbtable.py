@@ -41,6 +41,9 @@ if len(sys.argv) != 2:
 
 filename = sys.argv[1]
 
+def read_uint8(f):
+    return ord(f.read(1))
+
 def read_int16(f):
     v = f.read(2)
     return struct.unpack('h', v)[0]
@@ -57,9 +60,23 @@ def read_float64(f):
     v = f.read(8)
     return struct.unpack('d', v)[0]
 
+def read_uint32(f):
+    v = f.read(4)
+    return struct.unpack('I', v)[0]
+
+def read_uint40(f):
+    v_low = read_uint8(f)
+    v_high = read_uint32(f)
+    return v_low | (v_high << 8)
+
+def read_uint48(f):
+    v_low = read_uint8(f)
+    v_high = read_uint40(f)
+    return v_low | (v_high << 8)
+
 def read_varint(f):
 
-    b = ord(f.read(1))
+    b = read_uint8(f)
     ret = (b & 0x3F)
     sign = 1
     if (b & 0x40) != 0:
@@ -69,7 +86,7 @@ def read_varint(f):
     shift = 6
 
     while True:
-        b = ord(f.read(1))
+        b = read_uint8(f)
         ret = ret | ((b & 0x7F) << shift)
         if (b & 0x80) == 0:
             break
@@ -80,7 +97,7 @@ def read_varuint(f):
     shift = 0
     ret = 0
     while True:
-        b = ord(f.read(1))
+        b = read_uint8(f)
         ret = ret | ((b & 0x7F) << shift)
         if (b & 0x80) == 0:
             break
@@ -145,7 +162,7 @@ def read_tab_z(f, nb_geoms, tab_nb_points):
 def read_tab_m(f, nb_geoms, tab_nb_points):
 
     # 0x42 seems to be a special value to indicate absence of m array !
-    if ord(f.read(1)) == 0x42:
+    if read_uint8(f) == 0x42:
         return
     f.seek(-1, 1)
 
@@ -167,32 +184,65 @@ def read_tab_m(f, nb_geoms, tab_nb_points):
 
 filenamex = filename[0:-1] + 'x'
 fx = open(filenamex, 'rb')
-fx.seek(8, 0)
-nfeaturesx = read_int32(fx)
+fx.seek(4, 0)
+n1024Blocks = read_uint32(fx)
+print('n1024Blocks = %d' % n1024Blocks)
+nfeaturesx = read_uint32(fx)
 print('nfeaturesx = %d' % nfeaturesx)
-
-size_tablx_offsets = read_int32(fx)
+if n1024Blocks == 0:
+    assert nfeaturesx == 0
+else:
+    assert nfeaturesx >= 0
+size_tablx_offsets = read_uint32(fx)
 print('size_tablx_offsets = %d' % size_tablx_offsets)
+assert size_tablx_offsets >= 4 and size_tablx_offsets <= 6
+
+def TEST_BIT(ar, bit):
+    return 1 if (ar[(bit) // 8] & (1 << ((bit) % 8))) else 0
+
+def BIT_ARRAY_SIZE_IN_BYTES(bitsize):
+    return (((bitsize)+7)//8)
+
+pabyTablXBlockMap = None
+if n1024Blocks != 0:
+    fx.seek(size_tablx_offsets * 1024 * n1024Blocks + 16, 0)
+    nMagic = read_uint32(fx)
+    nBitsForBlockMap = read_uint32(fx)
+    n1024BlocksBis = read_uint32(fx)
+    assert n1024Blocks == n1024BlocksBis
+    read_uint32(fx) # skip
+    if nMagic == 0:
+        assert nBitsForBlockMap == n1024Blocks
+    else:
+        assert nfeaturesx <= nBitsForBlockMap * 1024
+        #Allocate a bit mask array for blocks of 1024 features.
+        nSizeInBytes = BIT_ARRAY_SIZE_IN_BYTES(nBitsForBlockMap)
+        pabyTablXBlockMap = fx.read(nSizeInBytes)
+        pabyTablXBlockMap = struct.unpack('B' * nSizeInBytes, pabyTablXBlockMap)
+        nCountBlocks = 0
+        for i in range(nBitsForBlockMap):
+            nCountBlocks += TEST_BIT(pabyTablXBlockMap, i)
+        assert nCountBlocks == n1024Blocks, (nCountBlocks, n1024Blocks)
 
 f = open(filename, 'rb')
 f.seek(4, 0)
-nfeatures = read_int32(f)
+nfeatures = read_uint32(f)
 print('nfeatures = %d' % nfeatures)
 
 
 f.seek(32, 0)
-header_offset_low = read_int32(f)
-header_offset_high = read_int32(f)
+header_offset_low = read_uint32(f)
+header_offset_high = read_uint32(f)
 header_offset = header_offset_low | (header_offset_high << 32)
 print('header_offset = %d' % header_offset)
 
 f.seek(header_offset, 0)
-header_length = read_int32(f)
+header_length = read_uint32(f)
 print('header_length = %d' % header_length)
 
 f.read(4)
 
-layer_geom_type = ord(f.read(1))
+layer_geom_type = read_uint8(f)
 print('layer_geom_type = %d' % layer_geom_type)
 if layer_geom_type == 1:
     print('point')
@@ -207,8 +257,8 @@ if layer_geom_type == 9:
 
 # skip 3 bytes
 f.seek(3, 1)
-nfields = ord(f.read(1))
-nfields += ord(f.read(1)) * 256
+nfields = read_uint8(f)
+nfields += read_uint8(f) * 256
 print('nfields = %d' % nfields)
 
 xyscale = None
@@ -220,32 +270,46 @@ fields = []
 has_flags = False
 nullable_fields = 0
 
+TYPE_INT16 = 0
+TYPE_INT32 = 1
+TYPE_FLOAT32 = 2
+TYPE_FLOAT64 = 3
+TYPE_STRING = 4
+TYPE_DATETIME = 5
+TYPE_OBJECTID = 6
+TYPE_GEOMETRY = 7
+TYPE_BINARY = 8
+TYPE_RASTER = 9
+TYPE_UUID_1 = 10
+TYPE_UUID_2 = 11
+TYPE_XML = 12
+
 def field_type_to_str(type):
-    if type == 0:
+    if type == TYPE_INT16:
         return 'int16'
-    if type == 1:
+    if type == TYPE_INT32:
         return 'int32'
-    if type == 2:
+    if type == TYPE_FLOAT32:
         return 'float32'
-    if type == 3:
+    if type == TYPE_FLOAT64:
         return 'float64'
-    if type == 4:
+    if type == TYPE_STRING:
         return 'string'
-    if type == 5:
+    if type == TYPE_DATETIME:
         return 'datetime'
-    if type == 6:
+    if type == TYPE_OBJECTID:
         return 'objectid'
-    if type == 7:
+    if type == TYPE_GEOMETRY:
         return 'geometry'
-    if type == 8:
+    if type == TYPE_BINARY:
         return 'binary'
-    if type == 9:
+    if type == TYPE_RASTER:
         return 'raster'
-    if type == 10:
+    if type == TYPE_UUID_1:
         return 'UUID'
-    if type == 11:
+    if type == TYPE_UUID_2:
         return 'UUID'
-    if type == 12:
+    if type == TYPE_XML:
         return 'XML'
     return 'unknown'
     
@@ -278,7 +342,7 @@ def read_curves(f):
             print(' --> circular arc')
             print('d1 = %f' % read_float64(f))
             print('d2 = %f' % read_float64(f))
-            bits = read_int32(f)
+            bits = read_uint32(f)
             print('bits = %d' % bits)
             if (bits & 0x1):  print(' IsEmpty')
             if (bits & 0x8):  print(' IsCCW')
@@ -305,7 +369,7 @@ def read_curves(f):
             print('rotation or fromv = %f' % read_float64(f))
             print('semimajor = %f' % read_float64(f))
             print('minormajorratio or deltav = %f' % read_float64(f))
-            bits = read_int32(f)
+            bits = read_uint32(f)
             print('bits = %d' % bits)
             if (bits & 0x1):    print(' IsEmpty')
             if (bits & 0x40):   print(' IsLine')
@@ -326,62 +390,62 @@ for i in range(nfields):
     #print(f.tell())
     
     print('')
-    nbcar =  ord(f.read(1))
+    nbcar =  read_uint8(f)
     
     if False:
         # obsolete logic since we have discovered default values
         # PreNIS.gdb/a00000009.gdbtable has 0's after some fields !
         while nbcar == 0:
             print('skipping zero byte')
-            nbcar =  ord(f.read(1))
+            nbcar =  read_uint8(f)
     
     print('nbcar = %d' % nbcar)
     name = ''
     for j in range(nbcar):
-        name = name + '%c' % f.read(1)
+        name = name + '%c' % read_uint8(f)
         f.read(1)
     print('name = %s' % name)
     fd.name = name
     
-    nbcar = ord(f.read(1))
+    nbcar = read_uint8(f)
     print('nbcar_alias = %d' % nbcar)
     alias = ''
     for j in range(nbcar):
-        alias = alias + '%c' % f.read(1)
+        alias = alias + '%c' % read_uint8(f)
         f.read(1)
     print('alias = %s' % alias)
     fd.alias = alias
     
-    type = ord(f.read(1))
+    type = read_uint8(f)
     fd.type = type
     fd.nullable = True
 
     print('type = %d (%s)' % (type, field_type_to_str(type)))
     # objectid
-    if type == 6:
-        print('magic1 = %d' % ord(f.read(1)))
-        print('magic2 = %d' % ord(f.read(1)))
+    if type == TYPE_OBJECTID:
+        print('magic1 = %d' % read_uint8(f))
+        print('magic2 = %d' % read_uint8(f))
         fd.nullable = False
 
     # shape
-    elif type == 7:
-        magic1 = ord(f.read(1)) # 0
-        flag = ord(f.read(1)) # 6 or 7
+    elif type == TYPE_GEOMETRY:
+        magic1 = read_uint8(f) # 0
+        flag = read_uint8(f) # 6 or 7
         if (flag & 1) == 0:
             fd.nullable = False
         
         print('magic1 = %d' % magic1)
         print('flag = %d' % flag)
-        wkt_len = ord(f.read(1))
-        wkt_len += ord(f.read(1)) * 256
+        wkt_len = read_uint8(f)
+        wkt_len += read_uint8(f) * 256
         
         wkt = ''
-        for j in range(wkt_len / 2):
-            wkt = wkt + '%c' % f.read(1)
+        for j in range(wkt_len // 2):
+            wkt = wkt + '%c' % read_uint8(f)
             f.read(1)
         print('wkt = %s' % wkt)
         
-        magic3 = ord(f.read(1))
+        magic3 = read_uint8(f)
         print('magic3 = %d' % magic3)
         
         has_m = False
@@ -429,21 +493,21 @@ for i in range(nfields):
         cur_pos = f.tell()
         print('cur_pos = %d' % cur_pos)
         while True:
-            read5 = f.read(5)
-            if read5[0] != chr(0) or (read5[1] != chr(1) and read5[1] != chr(2) and read5[1] != chr(3)) or read5[2] != chr(0) or read5[3] != chr(0) or read5[4] != chr(0):
+            read5 = struct.unpack('B' * 5, f.read(5))
+            if read5[0] != 0 or (read5[1] != 1 and read5[1] != 2 and read5[1] != 3) or read5[2] != 0 or read5[3] != 0 or read5[4] != 0:
                 f.seek(-5,1)
                 print(read_float64(f))
             else:
-                for i in range(ord(read5[1])):
+                for i in range(read5[1]):
                     print(read_float64(f))
                 break
 
     # string
-    elif type == 4:
-        width = read_int32(f)
+    elif type == TYPE_STRING:
+        width = read_uint32(f)
         fd.width = width
         print('width = %d' % width)
-        flag = ord(f.read(1))
+        flag = read_uint8(f)
         if (flag & 1) == 0:
             fd.nullable = False
         print('flag = %d' % flag)
@@ -453,22 +517,22 @@ for i in range(nfields):
             print('default value: %s' % f.read(default_value_length))
 
     # binary
-    elif type == 8:
+    elif type == TYPE_BINARY:
         f.read(1)
-        flag = ord(f.read(1))
+        flag = read_uint8(f)
         if (flag & 1) == 0:
             fd.nullable = False
         print('flag = %d' % flag)
 
     # raster
-    elif type == 9:
+    elif type == TYPE_RASTER:
         f.read(1)
-        flag = ord(f.read(1))
+        flag = read_uint8(f)
         if (flag & 1) == 0:
             fd.nullable = False
         print('flag = %d' % flag)
         
-        nbcar = ord(f.read(1))
+        nbcar = read_uint8(f)
         print('nbcar = %d' % nbcar)
         raster_column = ''
         for j in range(nbcar):
@@ -476,18 +540,18 @@ for i in range(nfields):
             f.read(1)
         print('raster_column = %s' % raster_column)
 
-        wkt_len = ord(f.read(1))
-        wkt_len += ord(f.read(1)) * 256
+        wkt_len = read_uint8(f)
+        wkt_len += read_uint8(f) * 256
         
         wkt = ''
-        for j in range(wkt_len / 2):
-            wkt = wkt + '%c' % f.read(1)
+        for j in range(wkt_len // 2):
+            wkt = wkt + '%c' % read_uint8(f)
             f.read(1)
         print('wkt = %s' % wkt)
         
         #f.read(82)
         
-        magic3 = ord(f.read(1))
+        magic3 = read_uint8(f)
         print('magic3 = %d' % magic3)
         
         if magic3 > 0:
@@ -524,26 +588,26 @@ for i in range(nfields):
                 raster_ztolerance = read_float64(f)
                 print('ztolerance = %.15f' % raster_ztolerance)
 
-        print(ord(f.read(1)))
+        print(read_uint8(f))
         
 
     # UUID or XML
-    elif type == 11 or type == 10 or type == 12:
-        width = ord(f.read(1))
+    elif type in (TYPE_UUID_1, TYPE_UUID_2, TYPE_XML):
+        width = read_uint8(f)
         print('width = %d' % width)
-        flag = ord(f.read(1))
+        flag = read_uint8(f)
         if (flag & 1) == 0:
             fd.nullable = False
         print('flag = %d' % flag)
 
     else:
-        width = ord(f.read(1))
+        width = read_uint8(f)
         print('width = %d' % width)
-        flag = ord(f.read(1))
+        flag = read_uint8(f)
         if (flag & 1) == 0:
             fd.nullable = False
         print('flag = %d' % flag)
-        default_value_length = ord(f.read(1))
+        default_value_length = read_uint8(f)
         print('default_value_length = %d' % default_value_length)
         if (flag & 4) != 0:
             if type == 0 and default_value_length == 2:
@@ -569,12 +633,39 @@ for i in range(nfields):
 
 print('')
 
-for fid in range(nfeaturesx):
-#for fid in [29863]:
-#for fid in [31590]:
+nCountBlocksBeforeIBlockIdx = 0
+nCountBlocksBeforeIBlockValue = 0
 
-    fx.seek(16 + fid * size_tablx_offsets, 0)
-    feature_offset = read_int32(fx)
+for fid in range(nfeaturesx):
+
+    if pabyTablXBlockMap:
+        iBlock = fid // 1024
+        # Check if the block is not empty
+        if TEST_BIT(pabyTablXBlockMap, iBlock) == 0:
+            continue
+
+        # As we do sequential reading, optimization to avoid recomputing
+        # the number of blocks since the beginning of the map
+        assert iBlock >= nCountBlocksBeforeIBlockIdx
+        nCountBlocksBefore = nCountBlocksBeforeIBlockValue
+        for i in range(nCountBlocksBeforeIBlockIdx, iBlock):
+            nCountBlocksBefore += TEST_BIT(pabyTablXBlockMap, i)
+
+        nCountBlocksBeforeIBlockIdx = iBlock
+        nCountBlocksBeforeIBlockValue = nCountBlocksBefore
+        iCorrectedRow = nCountBlocksBefore * 1024 + (fid % 1024)
+        fx.seek(16 + size_tablx_offsets * iCorrectedRow)
+    else:
+        fx.seek(16 + fid * size_tablx_offsets, 0)
+
+    if size_tablx_offsets == 4:
+        feature_offset = read_uint32(fx)
+    elif size_tablx_offsets == 5:
+        feature_offset = read_uint40(fx)
+    elif size_tablx_offsets == 6:
+        feature_offset = read_uint48(fx)
+    else:
+        assert False
 
     if feature_offset == 0:
         continue
@@ -585,14 +676,14 @@ for fid in range(nfeaturesx):
 
     f.seek(feature_offset, 0)
 
-    blob_len = read_int32(f)
+    blob_len = read_uint32(f)
     print('blob_len = %d' % blob_len)
 
     if has_flags:
         flags = []
         nremainingflags = nullable_fields
         while nremainingflags > 0:
-            flags.append(ord(f.read(1)))
+            flags.append(read_uint8(f))
             nremainingflags -= 8
         print('flags = %s' % flags)
 
@@ -607,48 +698,48 @@ for fid in range(nfeaturesx):
                     print('Field %s : NULL' % fields[ifield].name)
                     continue
 
-        if fields[ifield].type == 0:
+        if fields[ifield].type == TYPE_INT16:
             val = read_int16(f)
             print('Field %s : %d' % (fields[ifield].name, val))
 
-        elif fields[ifield].type == 1:
+        elif fields[ifield].type == TYPE_INT32:
             val = read_int32(f)
             print('Field %s : %d' % (fields[ifield].name, val))
 
-        elif fields[ifield].type == 2:
+        elif fields[ifield].type == TYPE_FLOAT32:
             val = read_float32(f)
             print('Field %s : %f' % (fields[ifield].name, val))
 
-        elif fields[ifield].type == 3:
+        elif fields[ifield].type == TYPE_FLOAT64:
             val = read_float64(f)
             print('Field %s : %f' % (fields[ifield].name, val))
 
-        elif fields[ifield].type == 4 or fields[ifield].type == 12:
+        elif fields[ifield].type in (TYPE_STRING, TYPE_XML):
             length = read_varuint(f)
             val = f.read(length)
             print('Field %s : "%s"' % (fields[ifield].name, val))
 
-        elif fields[ifield].type == 5:
+        elif fields[ifield].type == TYPE_DATETIME:
             val = read_float64(f)
             print('Field %s : %f days since 1899/12/30' % (fields[ifield].name, val))
 
-        elif fields[ifield].type == 8:
+        elif fields[ifield].type == TYPE_BINARY:
             length = read_varuint(f)
             val = f.read(length)
             print('Field %s : "%s" (len=%d)' % (fields[ifield].name, val, length))
 
-        elif fields[ifield].type == 9:
+        elif fields[ifield].type == TYPE_RASTER:
             length = read_int32(f)
             #length = read_varuint(f)
             #val = f.read(length)
             val = ''
             print('Field %s : "%s" (len=%d)' % (fields[ifield].name, val, length))
 
-        elif fields[ifield].type == 10 or fields[ifield].type == 11:
+        elif fields[ifield].type in (TYPE_UUID_1, TYPE_UUID_2):
             val = f.read(16)
             print('Field %s : "%s"' % (fields[ifield].name, ''.join(x.encode('hex') for x in val)))
 
-        elif fields[ifield].type == 7:
+        elif fields[ifield].type == TYPE_GEOMETRY:
             geom_len = read_varuint(f)
             print('geom_len = %d' % geom_len)
 

@@ -34,7 +34,7 @@ import struct
 import sys
 
 if len(sys.argv) != 2:
-    print('Usage: dump_gdbtable.py some_file.gdbindexes')
+    print('Usage: dump_gdbindexes.py some_file.gdbindexes')
     sys.exit(1)
 
 filename = sys.argv[1]

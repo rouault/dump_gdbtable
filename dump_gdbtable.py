@@ -242,7 +242,9 @@ print('header_length = %d' % header_length)
 
 f.read(4)
 
-layer_geom_type = read_uint8(f)
+layer_geom_type_full = read_uint32(f)
+layer_geom_type = layer_geom_type_full & 0xff
+print('layer_geom_type_full = %s' % hex(layer_geom_type_full))
 print('layer_geom_type = %d' % layer_geom_type)
 if layer_geom_type == 1:
     print('point')
@@ -254,9 +256,18 @@ if layer_geom_type == 4:
     print('polygon')
 if layer_geom_type == 9:
     print('multipatch')
+layer_geom_type_flag = layer_geom_type_full >> 24
+print('layer_geom_type_flag = %d' % layer_geom_type_flag)
+layer_has_z = layer_geom_type_flag & (1 << 7)
+if layer_has_z:
+    print('has z')
+layer_has_m = layer_geom_type_flag & (1 << 6)
+if layer_has_m:
+    print('has m')
+if layer_geom_type_flag & ~((1 << 7) | (1 << 6)):
+    print('has unknown flag')
 
-# skip 3 bytes
-f.seek(3, 1)
+
 nfields = read_uint8(f)
 nfields += read_uint8(f) * 256
 print('nfields = %d' % nfields)
@@ -445,16 +456,10 @@ for i in range(nfields):
             f.read(1)
         print('wkt = %s' % wkt)
         
-        magic3 = read_uint8(f)
-        print('magic3 = %d' % magic3)
-        
-        has_m = False
-        has_z = False
-        if magic3 == 5:
-            has_z = True
-        if magic3 == 7:
-            has_m = True
-            has_z = True
+        geom_flags = read_uint8(f)
+        print('geom_flags = %d' % geom_flags)
+        has_m_orig_scale_tolerance = (geom_flags & 2) != 0
+        has_z_orig_scale_tolerance = (geom_flags & 4) != 0
 
         xorig = read_float64(f)
         print('xorigin = %.15f' % xorig)
@@ -462,22 +467,22 @@ for i in range(nfields):
         print('yorigin = %.15f' % yorig)
         xyscale = read_float64(f)
         print('xyscale = %.15f' % xyscale)
-        if has_m:
+        if has_m_orig_scale_tolerance:
             morig = read_float64(f)
             print('morigin = %.15f' % morig)
             mscale = read_float64(f)
             print('mscale = %.15f' % mscale)
-        if has_z:
+        if has_z_orig_scale_tolerance:
             zorig = read_float64(f)
             print('zorigin = %.15f' % zorig)
             zscale = read_float64(f)
             print('zscale = %.15f' % zscale)
         xytolerance = read_float64(f)
         print('xytolerance = %.15f' % xytolerance)
-        if has_m:
+        if has_m_orig_scale_tolerance:
             mtolerance = read_float64(f)
             print('mtolerance = %.15f' % mtolerance)
-        if has_z:
+        if has_z_orig_scale_tolerance:
             ztolerance = read_float64(f)
             print('ztolerance = %.15f' % ztolerance)
 
@@ -489,18 +494,22 @@ for i in range(nfields):
         print('xmax = %.15f' % xmax)
         ymax = read_float64(f)
         print('ymax = %.15f' % ymax)
-        
-        cur_pos = f.tell()
-        print('cur_pos = %d' % cur_pos)
-        while True:
-            read5 = struct.unpack('B' * 5, f.read(5))
-            if read5[0] != 0 or (read5[1] != 1 and read5[1] != 2 and read5[1] != 3) or read5[2] != 0 or read5[3] != 0 or read5[4] != 0:
-                f.seek(-5,1)
-                print(read_float64(f))
-            else:
-                for i in range(read5[1]):
-                    print(read_float64(f))
-                break
+        if layer_has_z:
+            zmin = read_float64(f)
+            print('zmin = %.15f' % zmin)
+            zmax = read_float64(f)
+            print('zmax = %.15f' % zmax)
+        if layer_has_m:
+            mmin = read_float64(f)
+            print('mmin = %.15f' % mmin)
+            mmax = read_float64(f)
+            print('mmax = %.15f' % mmax)
+        byte_at_zero = ord(f.read(1))
+        assert byte_at_zero == 0
+        nb_grid_sizes=read_uint32(f)
+        print('nb_grid_sizes = %d' % nb_grid_sizes)
+        for i in range(nb_grid_sizes):
+            print('grid_size_%d = %f' % (i, read_float64(f)))
 
     # string
     elif type == TYPE_STRING:

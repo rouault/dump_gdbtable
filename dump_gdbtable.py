@@ -545,7 +545,7 @@ for i in range(nfields):
         print('nbcar = %d' % nbcar)
         raster_column = ''
         for j in range(nbcar):
-            raster_column = raster_column + '%c' % f.read(1)
+            raster_column = raster_column + '%c' % read_uint8(f)
             f.read(1)
         print('raster_column = %s' % raster_column)
 

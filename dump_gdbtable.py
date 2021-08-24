@@ -736,7 +736,7 @@ for fid in range(nfeaturesx):
 
         elif fields[ifield].type == TYPE_RASTER:
             if fd.is_managed:
-                print('Field %s : raster %d' % (fields[ifield].name, read_varuint(f)))
+                print('Field %s : raster %d' % (fields[ifield].name, read_uint32(f)))
             else:
                 length = read_varuint(f)
                 val = read_utf16(f, length // 2)

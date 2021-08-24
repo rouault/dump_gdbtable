@@ -104,6 +104,14 @@ def read_varuint(f):
         shift = shift + 7
     return ret
 
+def read_utf16(f, nbcar):
+    # FIXME : only works with ASCII currently
+    val = ''
+    for j in range(nbcar):
+        val = val + '%c' % read_uint8(f)
+        f.read(1)
+    return val
+
 def read_bbox(f):
     vi = read_varuint(f)
     minx = vi / xyscale + xorig
@@ -411,19 +419,13 @@ for i in range(nfields):
             nbcar =  read_uint8(f)
     
     print('nbcar = %d' % nbcar)
-    name = ''
-    for j in range(nbcar):
-        name = name + '%c' % read_uint8(f)
-        f.read(1)
+    name = read_utf16(f, nbcar)
     print('name = %s' % name)
     fd.name = name
     
     nbcar = read_uint8(f)
     print('nbcar_alias = %d' % nbcar)
-    alias = ''
-    for j in range(nbcar):
-        alias = alias + '%c' % read_uint8(f)
-        f.read(1)
+    alias = read_utf16(f, nbcar)
     print('alias = %s' % alias)
     fd.alias = alias
     
@@ -450,10 +452,7 @@ for i in range(nfields):
         wkt_len = read_uint8(f)
         wkt_len += read_uint8(f) * 256
         
-        wkt = ''
-        for j in range(wkt_len // 2):
-            wkt = wkt + '%c' % read_uint8(f)
-            f.read(1)
+        wkt = read_utf16(f, wkt_len // 2)
         print('wkt = %s' % wkt)
         
         geom_flags = read_uint8(f)
@@ -543,19 +542,13 @@ for i in range(nfields):
         
         nbcar = read_uint8(f)
         print('nbcar = %d' % nbcar)
-        raster_column = ''
-        for j in range(nbcar):
-            raster_column = raster_column + '%c' % read_uint8(f)
-            f.read(1)
+        raster_column = read_utf16(f, nbcar)
         print('raster_column = %s' % raster_column)
 
         wkt_len = read_uint8(f)
         wkt_len += read_uint8(f) * 256
         
-        wkt = ''
-        for j in range(wkt_len // 2):
-            wkt = wkt + '%c' % read_uint8(f)
-            f.read(1)
+        wkt = read_utf16(f, wkt_len // 2)
         print('wkt = %s' % wkt)
         
         #f.read(82)
@@ -597,8 +590,12 @@ for i in range(nfields):
                 raster_ztolerance = read_float64(f)
                 print('ztolerance = %.15f' % raster_ztolerance)
 
-        print(read_uint8(f))
-        
+        fd.is_managed = read_uint8(f)
+        if fd.is_managed:
+            print('Managed raster')
+        else:
+            print('External raster')
+
 
     # UUID or XML
     elif type in (TYPE_UUID_1, TYPE_UUID_2, TYPE_XML):
@@ -738,11 +735,12 @@ for fid in range(nfeaturesx):
             print('Field %s : "%s" (len=%d)' % (fields[ifield].name, val, length))
 
         elif fields[ifield].type == TYPE_RASTER:
-            length = read_int32(f)
-            #length = read_varuint(f)
-            #val = f.read(length)
-            val = ''
-            print('Field %s : "%s" (len=%d)' % (fields[ifield].name, val, length))
+            if fd.is_managed:
+                print('Field %s : raster %d' % (fields[ifield].name, read_varuint(f)))
+            else:
+                length = read_varuint(f)
+                val = read_utf16(f, length // 2)
+                print('Field %s : "%s"' % (fields[ifield].name, val))
 
         elif fields[ifield].type in (TYPE_UUID_1, TYPE_UUID_2):
             val = f.read(16)

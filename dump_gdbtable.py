@@ -726,7 +726,7 @@ for fid in range(nfeaturesx):
         elif fields[ifield].type in (TYPE_STRING, TYPE_XML):
             length = read_varuint(f)
             val = f.read(length)
-            print('Field %s : "%s"' % (fields[ifield].name, val))
+            print('Field %s : "%s"' % (fields[ifield].name, val.decode('utf-8')))
 
         elif fields[ifield].type == TYPE_DATETIME:
             val = read_float64(f)
@@ -746,7 +746,7 @@ for fid in range(nfeaturesx):
 
         elif fields[ifield].type in (TYPE_UUID_1, TYPE_UUID_2):
             val = f.read(16)
-            print('Field %s : "%s"' % (fields[ifield].name, ''.join(x.encode('hex') for x in val)))
+            print('Field %s : "%s"' % (fields[ifield].name, ''.join(('%02x' % x) for x in val)))
 
         elif fields[ifield].type == TYPE_GEOMETRY:
             geom_len = read_varuint(f)

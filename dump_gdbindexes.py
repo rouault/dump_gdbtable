@@ -39,28 +39,36 @@ if len(sys.argv) != 2:
 
 filename = sys.argv[1]
 
-def read_int16(f):
+def read_uint8(f):
+    return ord(f.read(1))
+
+def read_uint16(f):
     v = f.read(2)
-    return struct.unpack('h', v)[0]
+    return struct.unpack('H', v)[0]
 
 def read_int32(f):
     v = f.read(4)
     return struct.unpack('i', v)[0]
+
+def read_utf16(f, nbcar):
+    # FIXME : only works with ASCII currently
+    val = ''
+    for j in range(nbcar):
+        val = val + '%c' % read_uint8(f)
+        f.read(1)
+    return val
 
 f = open(filename, 'rb')
 nindexes = read_int32(f)
 print('nindexes = %d' % nindexes)
 for i in range(nindexes):
     idx_name_length_utf16_car = read_int32(f)
-    idx_name = ''
-    for j in range(idx_name_length_utf16_car):
-        idx_name = idx_name + f.read(1)
-        f.read(1)
+    idx_name = read_utf16(f, idx_name_length_utf16_car)
     print('idx_name = %s' % idx_name)
     
-    magic1 = read_int16(f)
+    magic1 = read_uint16(f)
     magic2 = read_int32(f)
-    magic3 = read_int16(f)
+    magic3 = read_uint16(f)
     magic4 = read_int32(f)
     print('magic1 = %d' % magic1)
     print('magic2 = %d' % magic2)
@@ -68,13 +76,10 @@ for i in range(nindexes):
     print('magic4 = %d' % magic4)
     
     col_name_length_utf16_car = read_int32(f)
-    col_name = ''
-    for j in range(col_name_length_utf16_car):
-        col_name = col_name + f.read(1)
-        f.read(1)
+    col_name = read_utf16(f, col_name_length_utf16_car)
     print('col_name = %s' % col_name)
     
-    magic5 = read_int16(f)
+    magic5 = read_uint16(f)
     print('magic5 = %d' % magic5)
 
     print('')

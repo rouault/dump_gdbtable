@@ -590,11 +590,15 @@ for i in range(nfields):
                 raster_ztolerance = read_float64(f)
                 print('ztolerance = %.15f' % raster_ztolerance)
 
-        fd.is_managed = read_uint8(f)
-        if fd.is_managed:
-            print('Managed raster')
-        else:
+        fd.raster_type = read_uint8(f)
+        if fd.raster_type == 0:
             print('External raster')
+        elif fd.raster_type == 1:
+            print('Managed raster')
+        elif fd.raster_type == 2:
+            print('Inline binary content')
+        else:
+            print('Unknown raster_type: %d' % fd.raster_type)
 
 
     # UUID or XML
@@ -723,7 +727,10 @@ for fid in range(nfeaturesx):
         elif fields[ifield].type in (TYPE_STRING, TYPE_XML):
             length = read_varuint(f)
             val = f.read(length)
-            print('Field %s : "%s"' % (fields[ifield].name, val.decode('utf-8')))
+            try:
+                print('Field %s : "%s"' % (fields[ifield].name, val.decode('utf-8')))
+            except UnicodeDecodeError:
+                print('Field %s : "%s"' % (fields[ifield].name, str(val)))
 
         elif fields[ifield].type == TYPE_DATETIME:
             val = read_float64(f)
@@ -735,12 +742,16 @@ for fid in range(nfeaturesx):
             print('Field %s : "%s" (len=%d)' % (fields[ifield].name, val, length))
 
         elif fields[ifield].type == TYPE_RASTER:
-            if fd.is_managed:
-                print('Field %s : raster %d' % (fields[ifield].name, read_uint32(f)))
-            else:
+            if fields[ifield].raster_type == 0:
                 length = read_varuint(f)
                 val = read_utf16(f, length // 2)
                 print('Field %s : "%s"' % (fields[ifield].name, val))
+            elif fields[ifield].raster_type == 1:
+                print('Field %s : raster %d' % (fields[ifield].name, read_uint32(f)))
+            elif fields[ifield].raster_type == 2:
+                length = read_varuint(f)
+                val = f.read(length)
+                print('Field %s : "%s" (len=%d)' % (fields[ifield].name, val, length))
 
         elif fields[ifield].type in (TYPE_UUID_1, TYPE_UUID_2):
             val = f.read(16)

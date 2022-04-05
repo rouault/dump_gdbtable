@@ -35,6 +35,35 @@
 import struct
 import sys
 
+SHPT_POINT        = 1
+SHPT_POINTM       =21
+SHPT_POINTZM      =11
+SHPT_POINTZ       = 9
+
+SHPT_MULTIPOINT   = 8
+SHPT_MULTIPOINTM  =28
+SHPT_MULTIPOINTZM =18
+SHPT_MULTIPOINTZ  =20
+
+SHPT_ARC          = 3
+SHPT_ARCM         =23
+SHPT_ARCZM        =13
+SHPT_ARCZ         =10
+
+SHPT_POLYGON      = 5
+SHPT_POLYGONM     =25
+SHPT_POLYGONZM    =15
+SHPT_POLYGONZ     =19
+
+SHPT_MULTIPATCHM  =31
+SHPT_MULTIPATCH   =32
+
+SHPT_GENERALPOLYLINE    =50
+SHPT_GENERALPOLYGON     =51
+SHPT_GENERALPOINT       =52
+SHPT_GENERALMULTIPOINT  =53
+SHPT_GENERALMULTIPATCH  =54
+
 if len(sys.argv) != 2:
     print('Usage: dump_gdbtable.py some_file.gdbtable')
     sys.exit(1)
@@ -526,7 +555,7 @@ for i in range(nfields):
 
     # binary
     elif type == TYPE_BINARY:
-        f.read(1)
+        print('unknown_role = %d' % read_uint8(f))
         flag = read_uint8(f)
         if (flag & 1) == 0:
             fd.nullable = False
@@ -534,7 +563,7 @@ for i in range(nfields):
 
     # raster
     elif type == TYPE_RASTER:
-        f.read(1)
+        print('unknown_role = %d' % read_uint8(f))
         flag = read_uint8(f)
         if (flag & 1) == 0:
             fd.nullable = False
@@ -765,34 +794,40 @@ for fid in range(nfeaturesx):
 
             geom_type = read_varuint(f)
             print('geom_type = %d --> %d' % (geom_type, geom_type & 0xff))
-            if geom_type == 1:
+            if geom_type == SHPT_POINT:
                 print('point')
-            elif geom_type == 9:
+            elif geom_type == SHPT_POINTZ:
                 print('pointz')
-            elif geom_type == 8:
+            elif geom_type == SHPT_POINTM:
+                print('pointm')
+            elif geom_type == SHPT_POINTZM:
+                print('pointzm')
+            elif geom_type == SHPT_MULTIPOINT:
                 print('multipoint')
-            elif geom_type == 18:
+            elif geom_type == SHPT_MULTIPOINTZM:
                 print('multipoint zm')
-            elif geom_type == 20:
+            elif geom_type == SHPT_MULTIPOINTZ:
                 print('multipoint z')
-            elif geom_type == 3:
+            elif geom_type == SHPT_MULTIPOINTM:
+                print('multipoint m')
+            elif geom_type == SHPT_ARC:
                 print('polyline')
-            elif geom_type == 10:
+            elif geom_type == SHPT_ARCZ:
                 print('polyline z')
-            elif geom_type == 13:
+            elif geom_type == SHPT_ARCZM:
                 print('polyline zm')
-            elif geom_type == 23:
+            elif geom_type == SHPT_ARCM:
                 print('polyline m')
-            elif geom_type == 5:
+            elif geom_type == SHPT_POLYGON:
                 print('polygon')
-            elif geom_type == 15:
+            elif geom_type == SHPT_POLYGONZM:
                 print('polygon zm')
-            elif geom_type == 19:
+            elif geom_type == SHPT_POLYGONZ:
                 print('polygon z')
-            elif geom_type == 25:
+            elif geom_type == SHPT_POLYGONM:
                 print('polygon m')
             # BikeInventory.gdb/a00000009.gdbtable, FID = 29864
-            elif geom_type & 0xff == 50:
+            elif geom_type & 0xff == SHPT_GENERALPOLYLINE:
                 print('generalpolyline');
                 if (geom_type & 0x80000000) != 0:
                     print(' has z')
@@ -801,7 +836,7 @@ for fid in range(nfeaturesx):
                 if (geom_type & 0x20000000) != 0:
                     print(' has curves')
             # http://frap.cdf.ca.gov/data/frapgisdata-sw-cdfadmin13_1_download.php
-            elif geom_type & 0xff == 51:
+            elif geom_type & 0xff == SHPT_GENERALPOLYGON:
                 print('generalpolygon');
                 if (geom_type & 0x80000000) != 0:
                     print(' has z')
@@ -810,7 +845,7 @@ for fid in range(nfeaturesx):
                 if (geom_type & 0x20000000) != 0:
                     print(' has curves')
             # /home/even/FileGDB_API/samples/data/Shapes.gdb/a00000027.gdbtable
-            elif geom_type & 0xff == 54:
+            elif geom_type & 0xff == SHPT_GENERALMULTIPATCH:
                 print('multipatch');
                 if (geom_type & 0x80000000) != 0:
                     print(' has z')
@@ -820,7 +855,7 @@ for fid in range(nfeaturesx):
                 print('unhandled geom_type')
 
 
-            if geom_type & 0xff == 50:
+            if geom_type & 0xff == SHPT_GENERALPOLYLINE:
 
                 nb_total_points = read_varuint(f)
                 print("nb_total_points: %d" % nb_total_points)
@@ -849,7 +884,7 @@ for fid in range(nfeaturesx):
                 if (geom_type & 0x20000000) != 0:
                     read_curves(f)
 
-            if geom_type & 0xff == 51:
+            if geom_type & 0xff == SHPT_GENERALPOLYGON:
 
                 nb_total_points = read_varuint(f)
                 print("nb_total_points: %d" % nb_total_points)
@@ -880,7 +915,7 @@ for fid in range(nfeaturesx):
 
                 #print("actual_length = %d vs %d" % (f.tell() - saved_offset, geom_len))
 
-            if geom_type & 0xff == 54:
+            if geom_type & 0xff == SHPT_GENERALMULTIPATCH:
 
                 nb_total_points = read_varuint(f)
                 print("nb_total_points: %d" % nb_total_points)
@@ -917,7 +952,7 @@ for fid in range(nfeaturesx):
 
                 #print("actual_length = %d vs %d" % (f.tell() - saved_offset, geom_len))
 
-            if geom_type in (8, 18, 20):
+            if geom_type in (SHPT_MULTIPOINT, SHPT_MULTIPOINTZ, SHPT_MULTIPOINTM, SHPT_MULTIPOINTZM):
                 nb_total_points = read_varuint(f)
                 print("nb_total_points: %d" % nb_total_points)
                 if nb_total_points == 0:
@@ -936,22 +971,30 @@ for fid in range(nfeaturesx):
                     y = dy_int / xyscale + yorig
                     print("[%d] x=%.15f y=%.15f" % (i, x, y))
 
-                if geom_type in (18, 20):
+                if geom_type in (SHPT_MULTIPOINTZ, SHPT_MULTIPOINTZM):
                     dz_int = 0
                     for i in range(nb_total_points):
-                        vi = read_varint(f) 
+                        vi = read_varint(f)
                         dz_int = dz_int + vi
                         z = dz_int / zscale + zorig
                         print("[%d] z=%.15f" % (i, z))
 
-            if geom_type == 1:
+                if geom_type in (SHPT_MULTIPOINTM, SHPT_MULTIPOINTZM):
+                    dm_int = 0
+                    for i in range(nb_total_points):
+                        vi = read_varint(f)
+                        dm_int = dm_int + vi
+                        m = dm_int / mscale + morig
+                        print("[%d] m=%.15f" % (i, m))
+
+            if geom_type == SHPT_POINT:
                 vi = read_varuint(f) - 1
                 x0 = vi / xyscale + xorig
                 vi = read_varuint(f) - 1
                 y0 = vi / xyscale + yorig
                 print("%.15f %.15f" % (x0, y0))
 
-            if geom_type == 9:
+            if geom_type == SHPT_POINTZ:
                 vi = read_varuint(f) - 1
                 x0 = vi / xyscale + xorig
                 vi = read_varuint(f) - 1
@@ -960,7 +1003,27 @@ for fid in range(nfeaturesx):
                 z0 = vi / zscale + zorig
                 print("%.15f %.15f %.15f" % (x0, y0, z0))
 
-            if geom_type in (3, 5, 10, 13, 15, 19, 23, 25):
+            if geom_type == SHPT_POINTM:
+                vi = read_varuint(f) - 1
+                x0 = vi / xyscale + xorig
+                vi = read_varuint(f) - 1
+                y0 = vi / xyscale + yorig
+                vi = read_varuint(f) - 1
+                m0 = vi / mscale + morig
+                print("%.15f %.15f %.15f" % (x0, y0, m0))
+
+            if geom_type == SHPT_POINTZM:
+                vi = read_varuint(f) - 1
+                x0 = vi / xyscale + xorig
+                vi = read_varuint(f) - 1
+                y0 = vi / xyscale + yorig
+                vi = read_varuint(f) - 1
+                z0 = vi / zscale + zorig
+                vi = read_varuint(f) - 1
+                m0 = vi / mscale + morig
+                print("%.15f %.15f %.15f %.15f" % (x0, y0, z0, m0))
+
+            if geom_type in (SHPT_ARC, SHPT_ARCM, SHPT_ARCZM, SHPT_ARCZ, SHPT_POLYGON, SHPT_POLYGONM, SHPT_POLYGONZM, SHPT_POLYGONZ):
 
                 nb_total_points = read_varuint(f)
                 print("nb_total_points: %d" % nb_total_points)
@@ -975,11 +1038,11 @@ for fid in range(nfeaturesx):
                 read_tab_xy(f, nb_geoms, tab_nb_points)
 
                 # z
-                if geom_type in (10, 13, 15, 19):
+                if geom_type in (SHPT_ARCZM, SHPT_ARCZ, SHPT_POLYGONZM, SHPT_POLYGONZ):
                     read_tab_z(f, nb_geoms, tab_nb_points)
 
                 # m
-                if geom_type in (13, 15, 23, 25):
+                if geom_type in (SHPT_ARCZM, SHPT_ARCM, SHPT_POLYGONZM, SHPT_POLYGONM):
                     read_tab_m(f, nb_geoms, tab_nb_points)
 
                 print('cur_offset = %d' % f.tell())

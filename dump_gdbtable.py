@@ -32,6 +32,7 @@
 # WARNING: proof-of-concept code of the https://github.com/rouault/dump_gdbtable/wiki/FGDB-Spec
 # not production ready, not all cases handled, etc...
 
+import uuid
 import struct
 import sys
 
@@ -265,6 +266,10 @@ f = open(filename, 'rb')
 f.seek(4, 0)
 nfeatures = read_uint32(f)
 print('nfeatures = %d' % nfeatures)
+
+# max(largest size of all record, header_length)
+largest_size_record = read_uint32(f)
+print('largest_size_record = %d' % largest_size_record)
 
 
 f.seek(32, 0)
@@ -675,6 +680,9 @@ print('')
 nCountBlocksBeforeIBlockIdx = 0
 nCountBlocksBeforeIBlockValue = 0
 
+import os
+display_as_c_struct = 'DISPLAY_AS_C_STRUCT' in os.environ
+
 for fid in range(nfeaturesx):
 
     if pabyTablXBlockMap:
@@ -709,14 +717,17 @@ for fid in range(nfeaturesx):
     if feature_offset == 0:
         continue
 
-    print('')
-    print('FID = %d' % (fid + 1))
-    print('feature_offset = %d' % feature_offset)
+    if not display_as_c_struct:
+        print('')
+        print('FID = %d' % (fid + 1))
+        print('feature_offset = %d' % feature_offset)
 
     f.seek(feature_offset, 0)
 
     blob_len = read_uint32(f)
-    print('blob_len = %d' % blob_len)
+
+    if not display_as_c_struct:
+        print('blob_len = %d' % blob_len)
 
     if has_flags:
         flags = []
@@ -724,42 +735,68 @@ for fid in range(nfeaturesx):
         while nremainingflags > 0:
             flags.append(read_uint8(f))
             nremainingflags -= 8
-        print('flags = %s' % flags)
+
+        if not display_as_c_struct:
+            print('flags = %s' % flags)
+
+    if display_as_c_struct:
+        sys.stdout.write('{')
 
     ifield_for_flag_test = 0
     for ifield in range(len(fields)):
+
+        if display_as_c_struct and ifield > 0:
+            sys.stdout.write(', ')
 
         if has_flags:
             if fields[ifield].nullable:
                 test = (flags[ifield_for_flag_test >> 3] & (1 << (ifield_for_flag_test % 8)))
                 ifield_for_flag_test = ifield_for_flag_test + 1
                 if test != 0:
-                    print('Field %s : NULL' % fields[ifield].name)
+                    if display_as_c_struct:
+                        sys.stdout.write('nullptr')
+                    else:
+                        print('Field %s : NULL' % fields[ifield].name)
                     continue
 
         if fields[ifield].type == TYPE_INT16:
             val = read_int16(f)
-            print('Field %s : %d' % (fields[ifield].name, val))
+            if display_as_c_struct:
+                sys.stdout.write('%d' % val)
+            else:
+                print('Field %s : %d' % (fields[ifield].name, val))
 
         elif fields[ifield].type == TYPE_INT32:
             val = read_int32(f)
-            print('Field %s : %d' % (fields[ifield].name, val))
+            if display_as_c_struct:
+                sys.stdout.write('%d' % val)
+            else:
+                print('Field %s : %d' % (fields[ifield].name, val))
 
         elif fields[ifield].type == TYPE_FLOAT32:
             val = read_float32(f)
-            print('Field %s : %f' % (fields[ifield].name, val))
+            if display_as_c_struct:
+                sys.stdout.write('%f' % val)
+            else:
+                print('Field %s : %f' % (fields[ifield].name, val))
 
         elif fields[ifield].type == TYPE_FLOAT64:
             val = read_float64(f)
-            print('Field %s : %f' % (fields[ifield].name, val))
+            if display_as_c_struct:
+                sys.stdout.write('%.18g' % val)
+            else:
+                print('Field %s : %.18g' % (fields[ifield].name, val))
 
         elif fields[ifield].type in (TYPE_STRING, TYPE_XML):
             length = read_varuint(f)
             val = f.read(length)
-            try:
-                print('Field %s : "%s"' % (fields[ifield].name, val.decode('utf-8')))
-            except UnicodeDecodeError:
-                print('Field %s : "%s"' % (fields[ifield].name, str(val)))
+            if display_as_c_struct:
+                sys.stdout.write('"%s"' % val.decode('utf-8'))
+            else:
+                try:
+                    print('Field %s : "%s"' % (fields[ifield].name, val.decode('utf-8')))
+                except UnicodeDecodeError:
+                    print('Field %s : "%s"' % (fields[ifield].name, str(val)))
 
         elif fields[ifield].type == TYPE_DATETIME:
             val = read_float64(f)
@@ -784,7 +821,10 @@ for fid in range(nfeaturesx):
 
         elif fields[ifield].type in (TYPE_UUID_1, TYPE_UUID_2):
             val = f.read(16)
-            print('Field %s : "%s"' % (fields[ifield].name, ''.join(('%02x' % x) for x in val)))
+            if display_as_c_struct:
+                sys.stdout.write('"{%s}"' % str(uuid.UUID(bytes_le=val)))
+            else:
+                print('Field %s : "{%s}"' % (fields[ifield].name, str(uuid.UUID(bytes_le=val))))
 
         elif fields[ifield].type == TYPE_GEOMETRY:
             geom_len = read_varuint(f)
@@ -1051,3 +1091,6 @@ for fid in range(nfeaturesx):
 
         else:
             print('unhandled type : %d' % fields[ifield].type)
+
+    if display_as_c_struct:
+        sys.stdout.write('},\n')

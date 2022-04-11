@@ -244,12 +244,16 @@ def BIT_ARRAY_SIZE_IN_BYTES(bitsize):
 pabyTablXBlockMap = None
 if n1024Blocks != 0:
     fx.seek(size_tablx_offsets * 1024 * n1024Blocks + 16, 0)
-    nMagic = read_uint32(fx)
+    nBitmapInt32Words = read_uint32(fx)
+    print('nBitmapInt32Words = %d' % nBitmapInt32Words)
     nBitsForBlockMap = read_uint32(fx)
+    print('nBitsForBlockMap = %d' % nBitsForBlockMap)
     n1024BlocksBis = read_uint32(fx)
+    print('n1024BlocksBis = %d' % n1024BlocksBis)
     assert n1024Blocks == n1024BlocksBis
-    read_uint32(fx) # skip
-    if nMagic == 0:
+    nLeadingNonZero32BitWords = read_uint32(fx)
+    print('nLeadingNonZero32BitWords = %d' % nLeadingNonZero32BitWords)
+    if nBitmapInt32Words == 0:
         assert nBitsForBlockMap == n1024Blocks
     else:
         assert nfeaturesx <= nBitsForBlockMap * 1024
@@ -866,6 +870,10 @@ for fid in range(nfeaturesx):
                 print('polygon z')
             elif geom_type == SHPT_POLYGONM:
                 print('polygon m')
+            elif geom_type == SHPT_MULTIPATCH:
+                print('multipatch')
+            elif geom_type == SHPT_MULTIPATCHM:
+                print('multipatch m')
             # BikeInventory.gdb/a00000009.gdbtable, FID = 29864
             elif geom_type & 0xff == SHPT_GENERALPOLYLINE:
                 print('generalpolyline');
@@ -955,7 +963,7 @@ for fid in range(nfeaturesx):
 
                 #print("actual_length = %d vs %d" % (f.tell() - saved_offset, geom_len))
 
-            if geom_type & 0xff == SHPT_GENERALMULTIPATCH:
+            if (geom_type & 0xff) in (SHPT_GENERALMULTIPATCH, SHPT_MULTIPATCH, SHPT_MULTIPATCHM):
 
                 nb_total_points = read_varuint(f)
                 print("nb_total_points: %d" % nb_total_points)
@@ -984,10 +992,10 @@ for fid in range(nfeaturesx):
 
                 read_tab_xy(f, nb_geoms, tab_nb_points)
 
-                if (geom_type & 0x80000000) != 0:
+                if (geom_type & 0x80000000) != 0 or geom_type in (SHPT_MULTIPATCH, SHPT_MULTIPATCHM):
                     read_tab_z(f, nb_geoms, tab_nb_points)
 
-                if (geom_type & 0x40000000) != 0:
+                if (geom_type & 0x40000000) != 0 or geom_type == SHPT_MULTIPATCHM:
                     read_tab_m(f, nb_geoms, tab_nb_points)
 
                 #print("actual_length = %d vs %d" % (f.tell() - saved_offset, geom_len))

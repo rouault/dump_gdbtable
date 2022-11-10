@@ -291,6 +291,9 @@ f.read(4)
 layer_geom_type_full = read_uint32(f)
 layer_geom_type = layer_geom_type_full & 0xff
 print('layer_geom_type_full = %s' % hex(layer_geom_type_full))
+out_of_line_geom = (layer_geom_type_full & 0x400) != 0
+if out_of_line_geom:
+    print('out of line geometry')
 print('layer_geom_type = %d' % layer_geom_type)
 if layer_geom_type == 1:
     print('point')
@@ -546,7 +549,7 @@ for i in range(nfields):
         nb_grid_sizes=read_uint32(f)
         print('nb_grid_sizes = %d' % nb_grid_sizes)
         for i in range(nb_grid_sizes):
-            print('grid_size_%d = %f' % (i, read_float64(f)))
+            print('grid_size_%d = %.18g' % (i, read_float64(f)))
 
     # string
     elif type == TYPE_STRING:
@@ -831,6 +834,11 @@ for fid in range(nfeaturesx):
                 print('Field %s : "{%s}"' % (fields[ifield].name, str(uuid.UUID(bytes_le=val))))
 
         elif fields[ifield].type == TYPE_GEOMETRY:
+
+            if out_of_line_geom:
+                print('Out of line geom skipped')
+                continue
+
             geom_len = read_varuint(f)
             print('geom_len = %d' % geom_len)
 

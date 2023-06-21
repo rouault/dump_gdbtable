@@ -1044,40 +1044,64 @@ for fid in range(nfeaturesx):
                         print("[%d] m=%.15f" % (i, m))
 
             if geom_type == SHPT_POINT:
-                vi = read_varuint(f) - 1
-                x0 = vi / xyscale + xorig
-                vi = read_varuint(f) - 1
-                y0 = vi / xyscale + yorig
-                print("%.15f %.15f" % (x0, y0))
+                vi = read_varuint(f)
+                if vi == 0:
+                    print("EMPTY")
+                    read_varuint(f)
+                else:
+                    vi -= 1
+                    x0 = vi / xyscale + xorig
+                    vi = read_varuint(f) - 1
+                    y0 = vi / xyscale + yorig
+                    print("%.15f %.15f" % (x0, y0))
 
             if geom_type == SHPT_POINTZ:
-                vi = read_varuint(f) - 1
-                x0 = vi / xyscale + xorig
-                vi = read_varuint(f) - 1
-                y0 = vi / xyscale + yorig
-                vi = read_varuint(f) - 1
-                z0 = vi / zscale + zorig
-                print("%.15f %.15f %.15f" % (x0, y0, z0))
+                vi = read_varuint(f)
+                if vi == 0:
+                    print("EMPTY")
+                    read_varuint(f)
+                    read_varuint(f)
+                else:
+                    vi -= 1
+                    x0 = vi / xyscale + xorig
+                    vi = read_varuint(f) - 1
+                    y0 = vi / xyscale + yorig
+                    vi = read_varuint(f) - 1
+                    z0 = vi / zscale + zorig
+                    print("%.15f %.15f %.15f" % (x0, y0, z0))
 
             if geom_type == SHPT_POINTM:
-                vi = read_varuint(f) - 1
-                x0 = vi / xyscale + xorig
-                vi = read_varuint(f) - 1
-                y0 = vi / xyscale + yorig
-                vi = read_varuint(f) - 1
-                m0 = vi / mscale + morig
-                print("%.15f %.15f %.15f" % (x0, y0, m0))
+                vi = read_varuint(f)
+                if vi == 0:
+                    print("EMPTY")
+                    read_varuint(f)
+                    read_varuint(f)
+                else:
+                    vi -= 1
+                    x0 = vi / xyscale + xorig
+                    vi = read_varuint(f) - 1
+                    y0 = vi / xyscale + yorig
+                    vi = read_varuint(f) - 1
+                    m0 = vi / mscale + morig
+                    print("%.15f %.15f %.15f" % (x0, y0, m0))
 
             if geom_type == SHPT_POINTZM:
-                vi = read_varuint(f) - 1
-                x0 = vi / xyscale + xorig
-                vi = read_varuint(f) - 1
-                y0 = vi / xyscale + yorig
-                vi = read_varuint(f) - 1
-                z0 = vi / zscale + zorig
-                vi = read_varuint(f) - 1
-                m0 = vi / mscale + morig
-                print("%.15f %.15f %.15f %.15f" % (x0, y0, z0, m0))
+                vi = read_varuint(f)
+                if vi == 0:
+                    print("EMPTY")
+                    read_varuint(f)
+                    read_varuint(f)
+                    read_varuint(f)
+                else:
+                    vi -= 1
+                    x0 = vi / xyscale + xorig
+                    vi = read_varuint(f) - 1
+                    y0 = vi / xyscale + yorig
+                    vi = read_varuint(f) - 1
+                    z0 = vi / zscale + zorig
+                    vi = read_varuint(f) - 1
+                    m0 = vi / mscale + morig
+                    print("%.15f %.15f %.15f %.15f" % (x0, y0, z0, m0))
 
             if geom_type in (SHPT_ARC, SHPT_ARCM, SHPT_ARCZM, SHPT_ARCZ, SHPT_POLYGON, SHPT_POLYGONM, SHPT_POLYGONZM, SHPT_POLYGONZ):
 

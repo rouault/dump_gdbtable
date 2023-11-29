@@ -82,6 +82,10 @@ def read_int32(f):
     v = f.read(4)
     return struct.unpack('i', v)[0]
 
+def read_int64(f):
+    v = f.read(8)
+    return struct.unpack('q', v)[0]
+
 def read_float32(f):
     v = f.read(4)
     return struct.unpack('f', v)[0]
@@ -343,6 +347,7 @@ TYPE_RASTER = 9
 TYPE_UUID_1 = 10
 TYPE_UUID_2 = 11
 TYPE_XML = 12
+TYPE_INT64 = 13
 
 def field_type_to_str(type):
     if type == TYPE_INT16:
@@ -371,6 +376,8 @@ def field_type_to_str(type):
         return 'UUID'
     if type == TYPE_XML:
         return 'XML'
+    if type == TYPE_INT64:
+        return 'int64'
     return 'unknown'
     
 def multipatch_part_type_to_str(type):
@@ -775,6 +782,13 @@ for fid in range(nfeaturesx):
 
         elif fields[ifield].type == TYPE_INT32:
             val = read_int32(f)
+            if display_as_c_struct:
+                sys.stdout.write('%d' % val)
+            else:
+                print('Field %s : %d' % (fields[ifield].name, val))
+
+        elif fields[ifield].type == TYPE_INT64:
+            val = read_int64(f)
             if display_as_c_struct:
                 sys.stdout.write('%d' % val)
             else:

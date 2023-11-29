@@ -82,6 +82,10 @@ def read_int32(f):
     v = f.read(4)
     return struct.unpack('i', v)[0]
 
+def read_int64(f):
+    v = f.read(8)
+    return struct.unpack('q', v)[0]
+
 def read_float32(f):
     v = f.read(4)
     return struct.unpack('f', v)[0]
@@ -343,36 +347,33 @@ TYPE_RASTER = 9
 TYPE_UUID_1 = 10
 TYPE_UUID_2 = 11
 TYPE_XML = 12
+TYPE_INT64 = 13
+TYPE_DATE = 14
+TYPE_TIME = 15
+TYPE_DATETIMEWITHOFFSET = 16
+
 
 def field_type_to_str(type):
-    if type == TYPE_INT16:
-        return 'int16'
-    if type == TYPE_INT32:
-        return 'int32'
-    if type == TYPE_FLOAT32:
-        return 'float32'
-    if type == TYPE_FLOAT64:
-        return 'float64'
-    if type == TYPE_STRING:
-        return 'string'
-    if type == TYPE_DATETIME:
-        return 'datetime'
-    if type == TYPE_OBJECTID:
-        return 'objectid'
-    if type == TYPE_GEOMETRY:
-        return 'geometry'
-    if type == TYPE_BINARY:
-        return 'binary'
-    if type == TYPE_RASTER:
-        return 'raster'
-    if type == TYPE_UUID_1:
-        return 'UUID'
-    if type == TYPE_UUID_2:
-        return 'UUID'
-    if type == TYPE_XML:
-        return 'XML'
-    return 'unknown'
-    
+    return {
+        TYPE_INT16: 'int16',
+        TYPE_INT32: 'int32',
+        TYPE_FLOAT32: 'float32',
+        TYPE_FLOAT64: 'float64',
+        TYPE_STRING: 'string',
+        TYPE_DATETIME: 'datetime',
+        TYPE_OBJECTID: 'objectid',
+        TYPE_GEOMETRY: 'geometry',
+        TYPE_BINARY: 'binary',
+        TYPE_RASTER: 'raster',
+        TYPE_UUID_1: 'UUID',
+        TYPE_UUID_2: 'UUID',
+        TYPE_XML: 'XML',
+        TYPE_INT64: 'int64',
+        TYPE_DATE: 'date',
+        TYPE_TIME: 'time',
+        TYPE_DATETIMEWITHOFFSET: 'datetime with offset'
+    }.get(type, 'unknown')
+
 def multipatch_part_type_to_str(type):
     if type == 0:
         return "triangle strip"
@@ -780,6 +781,13 @@ for fid in range(nfeaturesx):
             else:
                 print('Field %s : %d' % (fields[ifield].name, val))
 
+        elif fields[ifield].type == TYPE_INT64:
+            val = read_int64(f)
+            if display_as_c_struct:
+                sys.stdout.write('%d' % val)
+            else:
+                print('Field %s : %d' % (fields[ifield].name, val))
+
         elif fields[ifield].type == TYPE_FLOAT32:
             val = read_float32(f)
             if display_as_c_struct:
@@ -807,7 +815,23 @@ for fid in range(nfeaturesx):
 
         elif fields[ifield].type == TYPE_DATETIME:
             val = read_float64(f)
-            print('Field %s : %f days since 1899/12/30' % (fields[ifield].name, val))
+            print(f'Field {fields[ifield].name} : {val} days since 1899/12/30')
+
+        elif fields[ifield].type == TYPE_DATE:
+            # stored the same as datetime, seems to be a "flag" to indicate that
+            # the value should be treated just as a date by clients only
+            val = int(read_float64(f))
+            print(f'Field {fields[ifield].name} : {val} days since 1899/12/30')
+
+        elif fields[ifield].type == TYPE_TIME:
+            # stored like times in datetime, as a fraction of a day
+            val = read_float64(f)
+            print(f'Field {fields[ifield].name} : {val} days')
+
+        elif fields[ifield].type == TYPE_DATETIMEWITHOFFSET:
+            val = read_float64(f)
+            offset_mins = read_int16(f)
+            print(f'Field fields[ifield].name : {val} days since 1899/12/30, {offset_mins} mins offset from UTC')
 
         elif fields[ifield].type == TYPE_BINARY:
             length = read_varuint(f)

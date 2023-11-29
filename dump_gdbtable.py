@@ -290,7 +290,8 @@ f.seek(header_offset, 0)
 header_length = read_uint32(f)
 print('header_length = %d' % header_length)
 
-f.read(4)
+header_version = read_uint32(f)
+print('header_version = %d' % header_version)
 
 layer_geom_type_full = read_uint32(f)
 layer_geom_type = layer_geom_type_full & 0xff

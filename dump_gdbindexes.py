@@ -30,6 +30,7 @@
 ###############################################################################
 
 
+import os
 import struct
 import sys
 
@@ -65,21 +66,31 @@ for i in range(nindexes):
     idx_name_length_utf16_car = read_int32(f)
     idx_name = read_utf16(f, idx_name_length_utf16_car)
     print('idx_name = %s' % idx_name)
-    
+
     magic1 = read_uint16(f)
     magic2 = read_int32(f)
     magic3 = read_uint16(f)
-    magic4 = read_int32(f)
-    print('magic1 = %d' % magic1)
-    print('magic2 = %d' % magic2)
-    print('magic3 = %d' % magic3)
-    print('magic4 = %d' % magic4)
-    
-    col_name_length_utf16_car = read_int32(f)
-    col_name = read_utf16(f, col_name_length_utf16_car)
-    print('col_name = %s' % col_name)
-    
+    if not((magic2 == 2 and magic3 == 0) or (magic2 == 4 and magic3 == 0) or (magic2 == 16 and magic3 == 65535)):
+        # Cf files a00000029.gdbindexes, a000000ea.gdbindexes, a000000ed.gdbindexes, a000000f8.gdbindexes, a000000fb.gdbindexes, a00000103.gdbindexes from https://github.com/OSGeo/gdal/issues/11295#issuecomment-2491158506
+        f.seek(f.tell() - 2, 0)
+        print('Not understood index descriptor', file=sys.stderr)
+        col_name = read_utf16(f, magic2)
+        print('col_name = %s' % col_name)
+    else:
+        magic4 = read_int32(f)
+        print('magic1 = %d' % magic1)
+        print('magic2 = %d' % magic2)
+        print('magic3 = %d' % magic3)
+        print('magic4 = %d' % magic4)
+
+        col_name_length_utf16_car = read_int32(f)
+        col_name = read_utf16(f, col_name_length_utf16_car)
+        print('col_name = %s' % col_name)
+
     magic5 = read_uint16(f)
     print('magic5 = %d' % magic5)
 
     print('')
+
+if f.tell() != os.stat(filename).st_size:
+    print("Not a end of file", file=sys.stderr)

@@ -52,12 +52,7 @@ def read_int32(f):
     return struct.unpack('i', v)[0]
 
 def read_utf16(f, nbcar):
-    # FIXME : only works with ASCII currently
-    val = ''
-    for j in range(nbcar):
-        val = val + '%c' % read_uint8(f)
-        f.read(1)
-    return val
+    return f.read(nbcar * 2).decode("utf-16le")
 
 f = open(filename, 'rb')
 nindexes = read_int32(f)
